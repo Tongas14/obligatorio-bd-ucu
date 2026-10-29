@@ -1,4 +1,3 @@
-CREATE DATABASE IF NOT EXISTS torneo_ucu;
 USE torneo_ucu;
 
 CREATE TABLE login (
