@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=torneo_admin
+      - DB_PASSWORD=admin123
+      - DB_NAME=torneo_ucu
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root123
+      - MYSQL_DATABASE=torneo_ucu
+      - MYSQL_USER=torneo_admin
+      - MYSQL_PASSWORD=admin123
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./base_de_datos:/docker-entrypoint-initdb.d
+
+volumes:
+  db_data:
