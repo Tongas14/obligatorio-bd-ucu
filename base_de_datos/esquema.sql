@@ -2,7 +2,7 @@ USE torneo_ucu;
 
 CREATE TABLE login (
     correo VARCHAR(100) PRIMARY KEY,
-    contrasenia VARCHAR(255) NOT NULL,
+    contraseña VARCHAR(255) NOT NULL,
     rol ENUM('administrador', 'planillero') NOT NULL
 );
 
@@ -12,7 +12,7 @@ CREATE TABLE facultad (
 );
 
 CREATE TABLE jugador (
-    ci VARCHAR(15) PRIMARY KEY,
+    ci VARCHAR(50) PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
     apellido VARCHAR(50) NOT NULL,
     email VARCHAR(100) NOT NULL,
@@ -96,7 +96,7 @@ CREATE TABLE partido (
 
 CREATE TABLE planilla_partido (
     id_partido INT,
-    ci_jugador VARCHAR(15),
+    ci_jugador VARCHAR(50),
     id_equipo INT NOT NULL,
     PRIMARY KEY (id_partido, ci_jugador),
     FOREIGN KEY (id_partido) REFERENCES partido(id_partido),
@@ -107,7 +107,7 @@ CREATE TABLE planilla_partido (
 CREATE TABLE gol (
     id_gol INT PRIMARY KEY,
     id_partido INT NOT NULL,
-    ci_jugador VARCHAR(15) NOT NULL,
+    ci_jugador VARCHAR(50) NOT NULL,
     minuto INT NOT NULL,
     autogol BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (id_partido) REFERENCES partido(id_partido),
@@ -117,7 +117,7 @@ CREATE TABLE gol (
 CREATE TABLE tarjeta (
     id_tarjeta INT PRIMARY KEY,
     id_partido INT NOT NULL,
-    ci_jugador VARCHAR(15) NOT NULL,
+    ci_jugador VARCHAR(50) NOT NULL,
     minuto INT NOT NULL,
     color ENUM('amarilla', 'roja') NOT NULL,
     FOREIGN KEY (id_partido) REFERENCES partido(id_partido),
@@ -126,7 +126,7 @@ CREATE TABLE tarjeta (
 
 CREATE TABLE sancion_jugador (
     id_sancion INT PRIMARY KEY,
-    ci_jugador VARCHAR(15) NOT NULL,
+    ci_jugador VARCHAR(50) NOT NULL,
     id_torneo INT NOT NULL,
     motivo ENUM('roja', 'acumulación de amarillas', 'disciplinaria') NOT NULL,
     numero_fecha_inicio INT NOT NULL,
@@ -134,3 +134,77 @@ CREATE TABLE sancion_jugador (
     FOREIGN KEY (ci_jugador) REFERENCES jugador(ci),
     FOREIGN KEY (id_torneo) REFERENCES torneo(id_torneo)
 );
+
+
+
+INSERT INTO facultad VALUES 
+(1, 'Ingenieria'), (2, 'Medicina'), (3, 'Derecho');
+
+INSERT INTO jugador VALUES 
+('111', 'Juan', 'Perez', 'j@ucu.edu.uy', '2001-01-01', 1, 'grado'),
+('222', 'Matias', 'Gomez', 'm@ucu.edu.uy', '2001-01-01', 2, 'grado'),
+('333', 'Lucas', 'Silva', 'l@ucu.edu.uy', '2001-01-01', 3, 'posgrado'),
+('444', 'Diego', 'Lopez', 'd@ucu.edu.uy', '2001-01-01', 1, 'grado'),
+('555', 'Martin', 'Rios', 'ma@ucu.edu.uy', '1985-01-01', 2, 'docente'),
+('666', 'Pablo', 'Sosa', 'p@ucu.edu.uy', '1990-01-01', 3, 'funcionario'),
+('777', 'Gaston', 'Guzman', 'g@ucu.edu.uy', '2001-01-01', 1, 'grado'),
+('888', 'Ariel', 'Brava', 'a@ucu.edu.uy', '2001-01-01', 1, 'grado');
+
+INSERT INTO torneo VALUES 
+(1, 'Interfacultades', 2026, 2, '2026-08-15', '2026-11-20', 'en curso');
+
+INSERT INTO equipo VALUES 
+(1, 'Sistemas', 1, 1, '111'), (2, 'Economia', 1, 2, '222'),
+(3, 'Leyes', 1, 3, '333'), (4, 'Mecanica', 1, 1, '444'),
+(5, 'Contadores', 1, 2, '555'), (6, 'Notarios', 1, 3, '666');
+
+INSERT INTO equipo_jugador_torneo VALUES 
+(1, '111', 1, 10), (2, '222', 1, 10), (3, '333', 1, 10),
+(4, '444', 1, 10), (5, '555', 1, 10), (6, '666', 1, 10),
+(1, '777', 1, 5), (1, '888', 1, 2);
+
+INSERT INTO complejo VALUES 
+(1, 'UCU Deportes', 'Av. 8 de Octubre', 'Montevideo');
+
+INSERT INTO cancha VALUES 
+('Cancha 1', 1, 'sintético', TRUE), ('Cancha 2', 1, 'parquet', FALSE);
+
+INSERT INTO turno VALUES 
+(1, '18:00', '19:00'), (2, '19:00', '20:00'),
+(3, '20:00', '21:00'), (4, '21:00', '22:00'),
+(5, '22:00', '23:00');
+
+INSERT INTO partido VALUES 
+(1, 1, 1, 1, 2, '2026-09-01', 1, 'Cancha 1', 1, 'jugado'),
+(2, 1, 1, 3, 4, '2026-09-01', 2, 'Cancha 1', 1, 'jugado'),
+(3, 1, 1, 5, 6, '2026-09-01', 3, 'Cancha 1', 1, 'jugado'),
+(4, 1, 2, 1, 3, '2026-09-08', 1, 'Cancha 2', 1, 'jugado'),
+(5, 1, 2, 2, 5, '2026-09-08', 2, 'Cancha 2', 1, 'jugado'),
+(6, 1, 2, 4, 6, '2026-09-08', 3, 'Cancha 2', 1, 'jugado'),
+(7, 1, 3, 1, 4, '2026-09-15', 1, 'Cancha 1', 1, 'jugado'),
+(8, 1, 3, 2, 6, '2026-09-15', 2, 'Cancha 1', 1, 'jugado'),
+(9, 1, 3, 3, 5, '2026-09-15', 3, 'Cancha 1', 1, 'jugado'),
+(10, 1, 4, 1, 5, '2026-09-22', 1, 'Cancha 1', 1, 'postergado'),
+(11, 1, 4, 2, 4, '2026-09-22', 2, 'Cancha 1', 1, 'cancelado');
+
+INSERT INTO planilla_partido VALUES 
+(1, '111', 1), (1, '222', 2), (1, '888', 1);
+
+INSERT INTO gol VALUES 
+(1, 1, '111', 15, FALSE);
+
+INSERT INTO tarjeta VALUES 
+(1, 1, '888', 40, 'roja'), (2, 1, '222', 20, 'amarilla');
+
+INSERT INTO sancion_jugador VALUES 
+(1, '888', 1, 'roja', 2, 1);
+
+
+CREATE USER 'app_admin'@'%' IDENTIFIED BY 'admin123';
+
+GRANT ALL PRIVILEGES ON torneo_ucu.* TO 'app_admin'@'%';
+
+CREATE USER 'app_planillero'@'%' IDENTIFIED BY 'plani123';
+
+GRANT SELECT, INSERT, UPDATE ON torneo_ucu.* TO 'app_planillero'@'%';
+
