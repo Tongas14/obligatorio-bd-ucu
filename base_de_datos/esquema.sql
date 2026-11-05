@@ -25,7 +25,7 @@ CREATE TABLE jugador (
 CREATE TABLE torneo (
     id_torneo INT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    anio INT NOT NULL,
+    año INT NOT NULL,
     semestre INT NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE NOT NULL,
