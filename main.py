@@ -211,8 +211,6 @@ def eliminar_torneo(id_torneo: int):
     except mysql.connector.Error as err:
         return {"error": f"No se pudo eliminar: {err}"}
 
-
-
 class JugadorPlantel(BaseModel):
     ci: str
     dorsal: int
@@ -281,8 +279,6 @@ def crear_equipo(equipo: EquipoNuevo):
     except mysql.connector.Error as err:
         conexion.rollback() 
         return {"error": f"Error al guardar en la base de datos: {err}"}
-
-
 
 class FacultadNueva(BaseModel):
     id_facultad: int
@@ -374,4 +370,72 @@ def modificar_complejo(id_complejo: int, complejo: ComplejoNuevo):
         cursor.close()
         conexion.close()
         if filas == 0:
-            return {"error": "Complejo no encontrado
+            return {"error": "Complejo no encontrado"}
+        return {"mensaje": "Complejo modificado con éxito"}
+    except mysql.connector.Error as err:
+        return {"error": f"Error al modificar: {err}"}
+
+@app.delete("/complejos/{id_complejo}")
+def eliminar_complejo(id_complejo: int):
+    try:
+        conexion = conectar_bd("administrador")
+        cursor = conexion.cursor()
+        sql = "DELETE FROM complejo WHERE id_complejo = %s"
+        cursor.execute(sql, (id_complejo,))
+        conexion.commit()
+        filas = cursor.rowcount
+        cursor.close()
+        conexion.close()
+        if filas == 0:
+            return {"error": "Complejo no encontrado"}
+        return {"mensaje": "Complejo eliminado con éxito"}
+    except mysql.connector.Error as err:
+        return {"error": f"Error al eliminar: {err}"}
+
+@app.post("/canchas")
+def crear_cancha(cancha: CanchaNueva):
+    try:
+        conexion = conectar_bd("administrador")
+        cursor = conexion.cursor()
+        sql = "INSERT INTO cancha (nombre, id_complejo, tipo_suelo, techada) VALUES (%s, %s, %s, %s)"
+        cursor.execute(sql, (cancha.nombre, cancha.id_complejo, cancha.tipo_suelo, cancha.techada))
+        conexion.commit()
+        cursor.close()
+        conexion.close()
+        return {"mensaje": f"Cancha '{cancha.nombre}' dada de alta"}
+    except mysql.connector.Error as err:
+        return {"error": f"Error al guardar: {err}"}
+
+@app.put("/canchas/{nombre_cancha}")
+def modificar_cancha(nombre_cancha: str, cancha: CanchaNueva):
+    try:
+        conexion = conectar_bd("administrador")
+        cursor = conexion.cursor()
+        sql = "UPDATE cancha SET id_complejo=%s, tipo_suelo=%s, techada=%s WHERE nombre=%s"
+        cursor.execute(sql, (cancha.id_complejo, cancha.tipo_suelo, cancha.techada, nombre_cancha))
+        conexion.commit()
+        filas = cursor.rowcount
+        cursor.close()
+        conexion.close()
+        if filas == 0:
+            return {"error": "Cancha no encontrada"}
+        return {"mensaje": "Cancha modificada con éxito"}
+    except mysql.connector.Error as err:
+        return {"error": f"Error al modificar: {err}"}
+
+@app.delete("/canchas/{nombre_cancha}")
+def eliminar_cancha(nombre_cancha: str):
+    try:
+        conexion = conectar_bd("administrador")
+        cursor = conexion.cursor()
+        sql = "DELETE FROM cancha WHERE nombre = %s"
+        cursor.execute(sql, (nombre_cancha,))
+        conexion.commit()
+        filas = cursor.rowcount
+        cursor.close()
+        conexion.close()
+        if filas == 0:
+            return {"error": "Cancha no encontrada"}
+        return {"mensaje": "Cancha eliminada con éxito"}
+    except mysql.connector.Error as err:
+        return {"error": f"Error al eliminar: {err}"}
