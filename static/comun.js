@@ -47,6 +47,28 @@ function opcion(valor, texto, seleccionado) {
   return `<option value="${escapar(valor)}"${seleccionado ? " selected" : ""}>${escapar(texto)}</option>`;
 }
 
+const MENU_ADMINISTRADOR = [
+  ["/admin/jugadores", "Jugadores"],
+  ["/admin/equipos", "Equipos"],
+  ["/admin/datos", "Datos básicos"],
+  ["/admin/partidos", "Partidos"],
+  ["/planillero", "Planillas"],
+  ["/admin/sanciones", "Sanciones"],
+  ["/admin/consultas", "Consultas"],
+];
+
+// El menú depende del rol: el planillero solo ve su sección
+async function armarMenu() {
+  const nav = document.querySelector("header nav");
+  if (!nav) return;
+  const sesion = await fetch("/sesion").then(r => r.json());
+  const enlaces = sesion.rol === "administrador" ? MENU_ADMINISTRADOR : [["/planillero", "Planillas"]];
+  nav.innerHTML = enlaces.map(([url, nombre]) =>
+    `<a href="${url}"${url === location.pathname ? ' aria-current="page"' : ""}>${nombre}</a>`).join("");
+}
+
+armarMenu();
+
 async function cerrarSesion() {
   await fetch("/logout", { method: "POST" });
   location.href = "/login";

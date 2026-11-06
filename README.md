@@ -23,7 +23,8 @@ Requisito: tener Docker Desktop instalado y abierto.
 
    Está listo cuando aparece "MySQL init process done" y después "ready for connections"
    con "port: 3306" (antes aparecen otros "ready for connections" del arranque inicial).
-4. Abrir http://localhost:8000 e ingresar con un usuario de la tabla `login`.
+4. Abrir http://localhost:8000 e ingresar con uno de los usuarios de prueba (ver
+   [Usuarios y permisos](#usuarios-y-permisos)).
 
 Servicios:
 
@@ -85,21 +86,30 @@ con `TZ=America/Montevideo`.
 
 ## Usuarios y permisos
 
-Para ingresar a la app tiene que haber al menos un usuario en la tabla `login`
-(correo, contraseña y rol `administrador` o `planillero`).
+El script crea dos usuarios de prueba para ingresar a la app (las contraseñas se guardan
+como hash SHA-256 en la tabla `login`):
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| administrador | admin@ucu.edu.uy | admin2026 |
+| planillero | planillero@ucu.edu.uy | planillero2026 |
 
 La app se conecta a MySQL con un usuario distinto según el rol de quien inició sesión:
 
 | Rol | Usuario MySQL | Permisos |
 |---|---|---|
 | administrador | app_admin | Todo sobre `torneo_ucu` |
-| planillero | app_planillero | SELECT, INSERT, UPDATE; DELETE solo en planilla, goles y tarjetas |
+| planillero | app_planillero | Lectura de todo; escritura solo en planillas, goles y tarjetas, y UPDATE en partido (para marcarlo como jugado) |
 
-El planillero solo puede entrar a la pantalla de planillas (http://localhost:8000/planillero).
+El planillero solo puede entrar a la pantalla de planillas (http://localhost:8000/planillero):
+el resto de las pantallas y de la API le responden "sin permisos", también si escribe la URL a mano.
 
 ## Pantallas
 
 - `/login`: ingreso.
+- `/admin/jugadores`: ABM de jugadores.
+- `/admin/equipos`: ABM de equipos y sus planteles.
+- `/admin/datos`: ABM de facultades, torneos, complejos y canchas.
 - `/admin/partidos`: ABM de partidos.
 - `/planillero`: planilla, goles y tarjetas de cada partido.
 - `/admin/sanciones`: sanciones disciplinarias (las de roja y amarillas son automáticas).
@@ -109,8 +119,10 @@ El planillero solo puede entrar a la pantalla de planillas (http://localhost:800
 
 ```
 base_de_datos/esquema.sql   estructura, datos de prueba, triggers y usuarios de MySQL
-main.py                     app FastAPI, login y ABM de jugadores, torneos, equipos, etc.
-comun.py                    conexión a la base por rol y sesión
+main.py                     app FastAPI y login
+comun.py                    conexión a la base por rol, sesión y funciones comunes
+maestros.py                 ABM de jugadores, facultades, torneos, complejos y canchas
+equipos.py                  ABM de equipos y planteles
 partidos.py                 ABM de partidos
 planillas.py                planillas, goles y tarjetas
 sanciones.py                sanciones disciplinarias

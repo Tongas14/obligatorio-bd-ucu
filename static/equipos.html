@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Equipos - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav></nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Equipos y planteles</h1>
+    <p class="subtitulo">Cada equipo representa a una facultad y tiene entre 5 y 10 jugadores. Los planteles solo se modifican en etapa de inscripción.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta">
+      <label class="filtro">Torneo <select id="sel-torneo"></select></label>
+    </section>
+
+    <section class="tarjeta">
+      <h2 id="titulo-form">Nuevo equipo</h2>
+      <form id="form-equipo">
+        <div class="grilla">
+          <label>Nombre <input name="nombre" required maxlength="100"></label>
+          <label>Facultad <select name="id_facultad" id="sel-facultad" required></select></label>
+          <label>Capitán <select name="ci_capitan" id="sel-capitan" required></select></label>
+        </div>
+        <h3 class="separado">Plantel (marque entre 5 y 10 jugadores)</h3>
+        <div class="tabla-scroll">
+          <table>
+            <thead><tr><th></th><th>Jugador</th><th>Tipo</th><th>Camiseta</th></tr></thead>
+            <tbody id="tabla-plantel"></tbody>
+          </table>
+        </div>
+        <div class="acciones pie">
+          <button type="submit" id="btn-guardar">Dar de alta</button>
+          <button type="button" class="secundario" id="btn-cancelar" onclick="limpiarFormulario()" hidden>Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Equipos inscriptos</h2>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>Equipo</th><th>Facultad</th><th>Capitán</th><th>Jugadores</th><th></th></tr></thead>
+          <tbody id="tabla-equipos"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    const form = document.getElementById("form-equipo");
+    const selTorneo = document.getElementById("sel-torneo");
+    let jugadores = [];
+    let equipos = [];
+    let idEditando = null;
+
+    // Arma la lista de jugadores de la facultad elegida, marcando los del plantel
+    function cargarPlantel(plantel = []) {
+      const idFacultad = Number(form.id_facultad.value);
+      const enOtroEquipo = {};
+      equipos.filter(e => e.id_equipo !== idEditando)
+        .forEach(e => e.jugadores.forEach(j => enOtroEquipo[j.ci] = e.nombre));
+
+      document.getElementById("tabla-plantel").innerHTML = jugadores.filter(j => j.id_facultad === idFacultad).map(j => {
+        const enPlantel = plantel.find(p => p.ci === j.ci);
+        const otro = enOtroEquipo[j.ci];
+        return `
+          <tr>
+            <td><input type="checkbox" name="jugador" value="${escapar(j.ci)}" ${enPlantel ? "checked" : ""} ${otro ? "disabled" : ""}></td>
+            <td>${escapar(j.apellido)}, ${escapar(j.nombre)} ${otro ? `<span class="automatica">(en ${escapar(otro)})</span>` : ""}</td>
+            <td>${j.tipo}</td>
+            <td><input type="number" class="camiseta-input" data-ci="${escapar(j.ci)}" min="1" max="99" step="1"
+                 value="${enPlantel ? enPlantel.numero_camiseta : ""}" ${otro ? "disabled" : ""}></td>
+          </tr>`;
+      }).join("") || `<tr><td colspan="4" class="vacio">La facultad no tiene jugadores</td></tr>`;
+      cargarCapitanes();
+    }
+
+    function cargarCapitanes(seleccionado) {
+      const actual = seleccionado || form.ci_capitan.value;
+      const marcados = [...form.querySelectorAll("input[name=jugador]:checked")].map(c => jugadores.find(j => j.ci === c.value));
+      form.ci_capitan.innerHTML = opcion("", "Elegir...") +
+        marcados.map(j => opcion(j.ci, `${j.apellido}, ${j.nombre}`, j.ci === actual)).join("");
+    }
+
+    async function cargarEquipos() {
+      equipos = await api("GET", `/equipos?id_torneo=${selTorneo.value}`);
+      document.getElementById("tabla-equipos").innerHTML = equipos.map(e => `
+        <tr>
+          <td>${escapar(e.nombre)}</td>
+          <td>${escapar(e.facultad)}</td>
+          <td>${escapar(e.capitan)}</td>
+          <td>${e.jugadores.length}</td>
+          <td><div class="acciones">
+            <button class="secundario" onclick="editar(${e.id_equipo})">Editar</button>
+            <button class="peligro" onclick="eliminar(${e.id_equipo})">Eliminar</button>
+          </div></td>
+        </tr>`).join("") || `<tr><td colspan="5" class="vacio">No hay equipos en este torneo</td></tr>`;
+      if (!idEditando) cargarPlantel();
+    }
+
+    function limpiarFormulario() {
+      idEditando = null;
+      form.reset();
+      document.getElementById("titulo-form").textContent = "Nuevo equipo";
+      document.getElementById("btn-guardar").textContent = "Dar de alta";
+      document.getElementById("btn-cancelar").hidden = true;
+      cargarPlantel();
+    }
+
+    function editar(id) {
+      const e = equipos.find(x => x.id_equipo === id);
+      idEditando = id;
+      form.nombre.value = e.nombre;
+      form.id_facultad.value = e.id_facultad;
+      cargarPlantel(e.jugadores);
+      cargarCapitanes(e.ci_capitan);
+      document.getElementById("titulo-form").textContent = `Modificar equipo ${e.nombre}`;
+      document.getElementById("btn-guardar").textContent = "Guardar cambios";
+      document.getElementById("btn-cancelar").hidden = false;
+      form.scrollIntoView();
+    }
+
+    async function eliminar(id) {
+      if (!confirm("¿Eliminar el equipo y su plantel?")) return;
+      if (await ejecutar(() => api("DELETE", `/equipos/${id}`))) cargarEquipos();
+    }
+
+    selTorneo.addEventListener("change", () => { limpiarFormulario(); ejecutar(cargarEquipos); });
+    form.id_facultad.addEventListener("change", () => cargarPlantel());
+    form.addEventListener("change", (evento) => { if (evento.target.name === "jugador") cargarCapitanes(); });
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const plantel = [...form.querySelectorAll("input[name=jugador]:checked")].map(c => ({
+        ci: c.value,
+        numero_camiseta: Number(form.querySelector(`.camiseta-input[data-ci="${CSS.escape(c.value)}"]`).value),
+      }));
+      if (plantel.length < 5 || plantel.length > 10) {
+        mostrarMensaje("El plantel debe tener entre 5 y 10 jugadores", true);
+        return;
+      }
+      if (plantel.some(p => !(p.numero_camiseta >= 1 && p.numero_camiseta <= 99))) {
+        mostrarMensaje("Cada jugador marcado necesita un número de camiseta entre 1 y 99", true);
+        return;
+      }
+      const cuerpo = {
+        nombre: form.nombre.value, id_torneo: Number(selTorneo.value), id_facultad: Number(form.id_facultad.value),
+        ci_capitan: form.ci_capitan.value, jugadores: plantel,
+      };
+      const resultado = await ejecutar(() => idEditando
+        ? api("PUT", `/equipos/${idEditando}`, cuerpo)
+        : api("POST", "/equipos", cuerpo));
+      if (resultado) {
+        idEditando = null;
+        limpiarFormulario();
+        cargarEquipos();
+      }
+    });
+
+    ejecutar(async () => {
+      const [torneos, facultades] = await Promise.all([api("GET", "/torneos"), api("GET", "/facultades")]);
+      jugadores = await api("GET", "/jugadores");
+      selTorneo.innerHTML = torneos.map(t => opcion(t.id_torneo, `${t.nombre} ${t.anio}-${t.semestre} (${t.estado})`)).join("");
+      form.id_facultad.innerHTML = facultades.map(f => opcion(f.id_facultad, f.nombre)).join("");
+      await cargarEquipos();
+    });
+  </script>
+</body>
+</html>

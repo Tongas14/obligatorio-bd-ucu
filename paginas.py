@@ -18,7 +18,8 @@ def pagina_protegida(request: Request, archivo: str, *roles_permitidos):
         return RedirectResponse("/login")
     if rol not in roles_permitidos:
         return HTMLResponse(PAGINA_SIN_PERMISO, status_code=403)
-    return FileResponse(f"static/{archivo}")
+    # no-store: que el navegador no muestre una copia guardada a otro usuario que inicie sesión después
+    return FileResponse(f"static/{archivo}", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/", include_in_schema=False)
@@ -39,6 +40,21 @@ def sesion_actual(request: Request):
 @router.get("/login", include_in_schema=False)
 def pagina_login():
     return FileResponse("static/login.html")
+
+
+@router.get("/admin/jugadores", include_in_schema=False)
+def pagina_jugadores(request: Request):
+    return pagina_protegida(request, "jugadores.html", "administrador")
+
+
+@router.get("/admin/equipos", include_in_schema=False)
+def pagina_equipos(request: Request):
+    return pagina_protegida(request, "equipos.html", "administrador")
+
+
+@router.get("/admin/datos", include_in_schema=False)
+def pagina_datos(request: Request):
+    return pagina_protegida(request, "datos.html", "administrador")
 
 
 @router.get("/admin/partidos", include_in_schema=False)

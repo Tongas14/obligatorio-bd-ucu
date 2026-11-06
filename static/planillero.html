@@ -7,13 +7,11 @@
   <link rel="stylesheet" href="/static/estilos.css">
 </head>
 <body>
-  <!-- El planillero solo ve esta sección; los enlaces de admin se agregan solo si el rol es administrador -->
+  <!-- El menú lo arma comun.js: el planillero solo ve esta sección -->
   <header>
     <div class="barra">
       <span class="marca">Torneo Interfacultades UCU</span>
-      <nav id="nav">
-        <a href="/planillero" aria-current="page">Planillas</a>
-      </nav>
+      <nav></nav>
       <button class="salir" onclick="cerrarSesion()">Salir</button>
     </div>
   </header>
@@ -196,17 +194,7 @@
       }
     });
 
-    ejecutar(async () => {
-      const sesion = await api("GET", "/sesion");
-      if (sesion.rol === "administrador") {
-        document.getElementById("nav").innerHTML = `
-          <a href="/admin/partidos">Partidos</a>
-          <a href="/planillero" aria-current="page">Planillas</a>
-          <a href="/admin/sanciones">Sanciones</a>
-          <a href="/admin/consultas">Consultas</a>`;
-      }
-      await cargarPartidos();
-    });
+    ejecutar(() => cargarPartidos());
   </script>
 </body>
 </html>

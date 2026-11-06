@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Datos básicos - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav></nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Datos básicos</h1>
+    <p class="subtitulo">Facultades, ediciones del torneo, complejos deportivos y canchas.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta" id="facultades">
+      <h2>Facultades</h2>
+      <form class="grilla">
+        <label>Nombre <input name="nombre" required maxlength="100"></label>
+        <div class="acciones"><button type="submit">Guardar</button>
+          <button type="button" class="secundario cancelar" hidden>Cancelar edición</button></div>
+      </form>
+      <div class="tabla-scroll"><table>
+        <thead><tr><th>ID</th><th>Nombre</th><th></th></tr></thead><tbody></tbody>
+      </table></div>
+    </section>
+
+    <section class="tarjeta" id="torneos">
+      <h2>Torneos</h2>
+      <form class="grilla">
+        <label>Nombre <input name="nombre" required maxlength="100"></label>
+        <label>Año <input type="number" name="año" required min="2000" max="2100" step="1"></label>
+        <label>Semestre <select name="semestre" required><option value="1">1</option><option value="2">2</option></select></label>
+        <label>Inicio <input type="date" name="fecha_inicio" required></label>
+        <label>Fin <input type="date" name="fecha_fin" required></label>
+        <label>Estado
+          <select name="estado" required>
+            <option value="inscripción">inscripción</option>
+            <option value="en curso">en curso</option>
+            <option value="finalizado">finalizado</option>
+          </select>
+        </label>
+        <div class="acciones"><button type="submit">Guardar</button>
+          <button type="button" class="secundario cancelar" hidden>Cancelar edición</button></div>
+      </form>
+      <div class="tabla-scroll"><table>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Edición</th><th>Fechas</th><th>Estado</th><th></th></tr></thead><tbody></tbody>
+      </table></div>
+    </section>
+
+    <section class="tarjeta" id="complejos">
+      <h2>Complejos deportivos</h2>
+      <form class="grilla">
+        <label>Nombre <input name="nombre" required maxlength="100"></label>
+        <label>Dirección <input name="direccion" required maxlength="200"></label>
+        <label>Departamento <input name="departamento" required maxlength="100"></label>
+        <div class="acciones"><button type="submit">Guardar</button>
+          <button type="button" class="secundario cancelar" hidden>Cancelar edición</button></div>
+      </form>
+      <div class="tabla-scroll"><table>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Dirección</th><th>Departamento</th><th></th></tr></thead><tbody></tbody>
+      </table></div>
+    </section>
+
+    <section class="tarjeta" id="canchas">
+      <h2>Canchas</h2>
+      <form class="grilla">
+        <label>Complejo <select name="id_complejo" required></select></label>
+        <label>Nombre <input name="nombre_cancha" required maxlength="50"></label>
+        <label>Superficie
+          <select name="superficie" required><option value="sintético">sintético</option><option value="parquet">parquet</option></select>
+        </label>
+        <label class="opcion"><input type="checkbox" name="techada"> Techada</label>
+        <div class="acciones"><button type="submit">Guardar</button>
+          <button type="button" class="secundario cancelar" hidden>Cancelar edición</button></div>
+      </form>
+      <div class="tabla-scroll"><table>
+        <thead><tr><th>Complejo</th><th>Nombre</th><th>Superficie</th><th>Techada</th><th></th></tr></thead><tbody></tbody>
+      </table></div>
+    </section>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    // Cada sección es un ABM: lista, alta, edición y baja contra su ruta de la API
+    function abm({ seccion, ruta, clave, columnas, leerFormulario, alCargar }) {
+      const raiz = document.getElementById(seccion);
+      const form = raiz.querySelector("form");
+      const cancelar = raiz.querySelector(".cancelar");
+      let filas = [];
+      let editando = null;
+
+      function limpiar() {
+        editando = null;
+        form.reset();
+        cancelar.hidden = true;
+        form.querySelectorAll("[data-fijo]").forEach(c => c.disabled = false);
+      }
+
+      async function cargar() {
+        filas = await api("GET", ruta);
+        raiz.querySelector("tbody").innerHTML = filas.map((f, i) => `
+          <tr>${columnas(f).map(c => `<td>${c}</td>`).join("")}
+            <td><div class="acciones">
+              <button class="secundario" data-editar="${i}">Editar</button>
+              <button class="peligro" data-eliminar="${i}">Eliminar</button>
+            </div></td>
+          </tr>`).join("") || `<tr><td colspan="${columnas({}).length + 1}" class="vacio">No hay datos</td></tr>`;
+        if (alCargar) alCargar(filas);
+      }
+
+      raiz.querySelector("tbody").addEventListener("click", async (evento) => {
+        const { editar, eliminar } = evento.target.dataset;
+        if (editar !== undefined) {
+          const fila = filas[editar];
+          editando = clave(fila);
+          for (const campo of form.elements) {
+            if (!campo.name || !(campo.name in fila)) continue;
+            if (campo.type === "checkbox") campo.checked = Boolean(fila[campo.name]);
+            else campo.value = fila[campo.name];
+          }
+          form.querySelectorAll("[data-fijo]").forEach(c => c.disabled = true);
+          cancelar.hidden = false;
+        }
+        if (eliminar !== undefined && confirm("¿Eliminar este registro?")) {
+          if (await ejecutar(() => api("DELETE", `${ruta}/${clave(filas[eliminar])}`))) cargar();
+        }
+      });
+
+      cancelar.addEventListener("click", limpiar);
+
+      form.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        const cuerpo = leerFormulario(form);
+        const resultado = await ejecutar(() => editando !== null
+          ? api("PUT", `${ruta}/${editando}`, cuerpo)
+          : api("POST", ruta, cuerpo));
+        if (resultado) {
+          limpiar();
+          cargar();
+        }
+      });
+
+      return cargar;
+    }
+
+    const datos = form => Object.fromEntries(new FormData(form));
+
+    const cargarFacultades = abm({
+      seccion: "facultades", ruta: "/facultades", clave: f => f.id_facultad,
+      columnas: f => [f.id_facultad, escapar(f.nombre)],
+      leerFormulario: datos,
+    });
+
+    const cargarTorneos = abm({
+      seccion: "torneos", ruta: "/torneos", clave: t => t.id_torneo,
+      columnas: t => [t.id_torneo, escapar(t.nombre), `${t.anio}-${t.semestre}`, `${t.fecha_inicio} a ${t.fecha_fin}`, t.estado],
+      leerFormulario: form => ({ ...datos(form), año: Number(form.año.value), semestre: Number(form.semestre.value) }),
+      alCargar: filas => filas.forEach(t => t.año = t.anio),
+    });
+
+    const cargarCanchas = abm({
+      seccion: "canchas", ruta: "/canchas",
+      clave: c => `${c.id_complejo}/${encodeURIComponent(c.nombre_cancha)}`,
+      columnas: c => [escapar(c.complejo), escapar(c.nombre_cancha), c.superficie, c.techada ? "Sí" : "No"],
+      leerFormulario: form => ({
+        nombre_cancha: form.nombre_cancha.value, id_complejo: Number(form.id_complejo.value),
+        superficie: form.superficie.value, techada: form.techada.checked,
+      }),
+    });
+
+    const cargarComplejos = abm({
+      seccion: "complejos", ruta: "/complejos", clave: c => c.id_complejo,
+      columnas: c => [c.id_complejo, escapar(c.nombre), escapar(c.direccion), escapar(c.departamento)],
+      leerFormulario: datos,
+      // La lista de complejos alimenta el desplegable de canchas
+      alCargar: filas => {
+        document.querySelector("#canchas [name=id_complejo]").innerHTML =
+          filas.map(c => opcion(c.id_complejo, c.nombre)).join("");
+        cargarCanchas();
+      },
+    });
+
+    // En una cancha el complejo y el nombre son la clave: no se cambian al editar
+    document.querySelector("#canchas [name=id_complejo]").dataset.fijo = "";
+    document.querySelector("#canchas [name=nombre_cancha]").dataset.fijo = "";
+
+    ejecutar(async () => {
+      await Promise.all([cargarFacultades(), cargarTorneos(), cargarComplejos()]);
+    });
+  </script>
+</body>
+</html>

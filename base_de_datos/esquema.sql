@@ -8,56 +8,66 @@ CREATE TABLE login (
 );
 
 CREATE TABLE facultad (
-    id_facultad INT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL
+    id_facultad INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE
 );
 
 CREATE TABLE jugador (
-    ci VARCHAR(50) PRIMARY KEY,
+    ci VARCHAR(15) PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
     apellido VARCHAR(50) NOT NULL,
-    email VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
     fecha_nacimiento DATE NOT NULL,
     id_facultad INT NOT NULL,
     tipo ENUM('grado', 'posgrado', 'docente', 'funcionario') NOT NULL,
+    CHECK (email LIKE '%_@_%._%'),
     FOREIGN KEY (id_facultad) REFERENCES facultad(id_facultad)
 );
 
 CREATE TABLE torneo (
-    id_torneo INT PRIMARY KEY,
+    id_torneo INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     año INT NOT NULL,
     semestre INT NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE NOT NULL,
-    estado ENUM('inscripción', 'en curso', 'finalizado') NOT NULL
+    estado ENUM('inscripción', 'en curso', 'finalizado') NOT NULL,
+    UNIQUE (año, semestre),
+    CHECK (semestre IN (1, 2)),
+    CHECK (año BETWEEN 2000 AND 2100),
+    CHECK (fecha_fin > fecha_inicio)
 );
 
 CREATE TABLE equipo (
-    id_equipo INT PRIMARY KEY,
+    id_equipo INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     id_torneo INT NOT NULL,
     id_facultad INT NOT NULL,
     ci_capitan VARCHAR(15) NOT NULL,
+    UNIQUE (nombre, id_torneo),
     FOREIGN KEY (id_torneo) REFERENCES torneo(id_torneo),
     FOREIGN KEY (id_facultad) REFERENCES facultad(id_facultad),
     FOREIGN KEY (ci_capitan) REFERENCES jugador(ci)
 );
 
+-- UNIQUE (ci_jugador, id_torneo): un jugador no integra más de un equipo en la misma edición
 CREATE TABLE equipo_jugador_torneo (
     id_equipo INT,
     ci_jugador VARCHAR(15),
     id_torneo INT,
-    numero_camiseta INT,
+    numero_camiseta INT NOT NULL,
     PRIMARY KEY (id_equipo, ci_jugador, id_torneo),
+    UNIQUE (ci_jugador, id_torneo),
+    UNIQUE (id_equipo, numero_camiseta),
+    CHECK (numero_camiseta BETWEEN 1 AND 99),
     FOREIGN KEY (id_equipo) REFERENCES equipo(id_equipo),
     FOREIGN KEY (ci_jugador) REFERENCES jugador(ci),
     FOREIGN KEY (id_torneo) REFERENCES torneo(id_torneo)
 );
 
 CREATE TABLE complejo (
-    id_complejo INT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
+    id_complejo INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
     direccion VARCHAR(200) NOT NULL,
     departamento VARCHAR(100) NOT NULL
 );
@@ -99,7 +109,7 @@ CREATE TABLE partido (
 
 CREATE TABLE planilla_partido (
     id_partido INT,
-    ci_jugador VARCHAR(50),
+    ci_jugador VARCHAR(15),
     id_equipo INT NOT NULL,
     PRIMARY KEY (id_partido, ci_jugador),
     FOREIGN KEY (id_partido) REFERENCES partido(id_partido),
@@ -110,7 +120,7 @@ CREATE TABLE planilla_partido (
 CREATE TABLE gol (
     id_gol INT AUTO_INCREMENT PRIMARY KEY,
     id_partido INT NOT NULL,
-    ci_jugador VARCHAR(50) NOT NULL,
+    ci_jugador VARCHAR(15) NOT NULL,
     minuto INT NOT NULL,
     autogol BOOLEAN NOT NULL DEFAULT FALSE,
     CHECK (minuto BETWEEN 0 AND 60),
@@ -121,7 +131,7 @@ CREATE TABLE gol (
 CREATE TABLE tarjeta (
     id_tarjeta INT AUTO_INCREMENT PRIMARY KEY,
     id_partido INT NOT NULL,
-    ci_jugador VARCHAR(50) NOT NULL,
+    ci_jugador VARCHAR(15) NOT NULL,
     minuto INT NOT NULL,
     color ENUM('amarilla', 'roja') NOT NULL,
     CHECK (minuto BETWEEN 0 AND 60),
@@ -132,7 +142,7 @@ CREATE TABLE tarjeta (
 -- id_tarjeta_origen: tarjeta que generó la sanción automática (NULL en las disciplinarias)
 CREATE TABLE sancion_jugador (
     id_sancion INT AUTO_INCREMENT PRIMARY KEY,
-    ci_jugador VARCHAR(50) NOT NULL,
+    ci_jugador VARCHAR(15) NOT NULL,
     id_torneo INT NOT NULL,
     motivo ENUM('roja', 'acumulación de amarillas', 'disciplinaria') NOT NULL,
     numero_fecha_inicio INT NOT NULL,
@@ -147,7 +157,12 @@ CREATE TABLE sancion_jugador (
 
 
 
-INSERT INTO facultad VALUES 
+-- Las contraseñas se guardan como hash SHA-256, nunca en texto plano
+INSERT INTO login VALUES
+('admin@ucu.edu.uy', SHA2('admin2026', 256), 'administrador'),
+('planillero@ucu.edu.uy', SHA2('planillero2026', 256), 'planillero');
+
+INSERT INTO facultad VALUES
 (1, 'Ingenieria'), (2, 'Medicina'), (3, 'Derecho');
 
 INSERT INTO jugador VALUES 
@@ -210,10 +225,59 @@ INSERT INTO sancion_jugador VALUES
 (1, '888', 1, 'roja', 2, 1, 1);
 
 
--- Reglas de partidos, planillas y sanciones.
--- Van después de los datos de prueba para que la regla de 48 horas no los bloquee.
+-- Reglas de planteles, partidos, planillas y sanciones.
+-- Van después de los datos de prueba para que las reglas de inscripción y de 48 horas no los bloqueen.
 
 DELIMITER //
+
+-- Un alta o cambio en un plantel solo se permite en inscripción, con jugadores de la
+-- facultad del equipo, hasta 10 jugadores y hasta 2 docentes o funcionarios
+CREATE PROCEDURE sp_validar_plantel(IN p_id_equipo INT, IN p_ci VARCHAR(15), IN p_id_torneo INT)
+BEGIN
+    DECLARE v_id_torneo INT;
+    DECLARE v_id_facultad INT;
+
+    SELECT id_torneo, id_facultad INTO v_id_torneo, v_id_facultad FROM equipo WHERE id_equipo = p_id_equipo;
+
+    IF v_id_torneo <> p_id_torneo THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El torneo del plantel no coincide con el del equipo';
+    END IF;
+    IF (SELECT estado FROM torneo WHERE id_torneo = p_id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El plantel solo se puede modificar en etapa de inscripción';
+    END IF;
+    IF (SELECT id_facultad FROM jugador WHERE ci = p_ci) <> v_id_facultad THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador no pertenece a la facultad del equipo';
+    END IF;
+    IF (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = p_id_equipo AND ci_jugador <> p_ci) >= 10 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El plantel no puede tener más de 10 jugadores';
+    END IF;
+    IF (SELECT tipo FROM jugador WHERE ci = p_ci) IN ('docente', 'funcionario') AND (
+        SELECT COUNT(*) FROM equipo_jugador_torneo ejt JOIN jugador j ON j.ci = ejt.ci_jugador
+        WHERE ejt.id_equipo = p_id_equipo AND ejt.ci_jugador <> p_ci AND j.tipo IN ('docente', 'funcionario')
+    ) >= 2 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El plantel no puede tener más de 2 docentes o funcionarios';
+    END IF;
+END//
+
+CREATE TRIGGER trg_plantel_bi BEFORE INSERT ON equipo_jugador_torneo
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_plantel(NEW.id_equipo, NEW.ci_jugador, NEW.id_torneo);
+END//
+
+CREATE TRIGGER trg_plantel_bu BEFORE UPDATE ON equipo_jugador_torneo
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_plantel(NEW.id_equipo, NEW.ci_jugador, NEW.id_torneo);
+END//
+
+CREATE TRIGGER trg_plantel_bd BEFORE DELETE ON equipo_jugador_torneo
+FOR EACH ROW
+BEGIN
+    IF (SELECT estado FROM torneo WHERE id_torneo = OLD.id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El plantel solo se puede modificar en etapa de inscripción';
+    END IF;
+END//
 
 -- Momento en que termina un partido (día + hora de fin del turno)
 CREATE FUNCTION fn_fin_partido(p_dia DATE, p_id_turno INT) RETURNS DATETIME
@@ -226,7 +290,7 @@ END//
 
 -- Un jugador está suspendido en una fecha si alguna sanción la abarca:
 -- desde numero_fecha_inicio hasta numero_fecha_inicio + cantidad_fechas - 1
-CREATE FUNCTION fn_jugador_suspendido(p_ci VARCHAR(50), p_id_torneo INT, p_numero_fecha INT) RETURNS BOOLEAN
+CREATE FUNCTION fn_jugador_suspendido(p_ci VARCHAR(15), p_id_torneo INT, p_numero_fecha INT) RETURNS BOOLEAN
 READS SQL DATA
 BEGIN
     RETURN EXISTS (
@@ -312,14 +376,14 @@ BEGIN
     END IF;
 END//
 
-CREATE PROCEDURE sp_validar_jugador_en_planilla(IN p_id_partido INT, IN p_ci VARCHAR(50))
+CREATE PROCEDURE sp_validar_jugador_en_planilla(IN p_id_partido INT, IN p_ci VARCHAR(15))
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM planilla_partido WHERE id_partido = p_id_partido AND ci_jugador = p_ci) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador no figura en la planilla del partido';
     END IF;
 END//
 
-CREATE PROCEDURE sp_validar_planilla(IN p_id_partido INT, IN p_ci VARCHAR(50), IN p_id_equipo INT)
+CREATE PROCEDURE sp_validar_planilla(IN p_id_partido INT, IN p_ci VARCHAR(15), IN p_id_equipo INT)
 BEGIN
     DECLARE v_id_torneo INT;
     DECLARE v_numero_fecha INT;
@@ -502,7 +566,7 @@ BEGIN
 END//
 
 -- Una sanción disciplinaria no puede abarcar fechas en las que el jugador ya figura en una planilla
-CREATE PROCEDURE sp_validar_sancion(IN p_ci VARCHAR(50), IN p_id_torneo INT, IN p_motivo VARCHAR(30),
+CREATE PROCEDURE sp_validar_sancion(IN p_ci VARCHAR(15), IN p_id_torneo INT, IN p_motivo VARCHAR(30),
                                     IN p_inicio INT, IN p_cantidad INT)
 BEGIN
     IF p_motivo = 'disciplinaria' THEN
@@ -540,10 +604,12 @@ GRANT ALL PRIVILEGES ON torneo_ucu.* TO 'app_admin'@'%';
 
 CREATE USER 'app_planillero'@'%' IDENTIFIED BY 'plani123';
 
-GRANT SELECT, INSERT, UPDATE ON torneo_ucu.* TO 'app_planillero'@'%';
-
--- El planillero corrige planillas, goles y tarjetas (nunca partidos ni sanciones a mano)
-GRANT DELETE ON torneo_ucu.planilla_partido TO 'app_planillero'@'%';
-GRANT DELETE ON torneo_ucu.gol TO 'app_planillero'@'%';
-GRANT DELETE ON torneo_ucu.tarjeta TO 'app_planillero'@'%';
+-- El planillero lee todo, pero solo escribe planillas, goles y tarjetas.
+-- UPDATE en partido es para marcarlo como jugado al guardar la planilla.
+-- Las sanciones automáticas las crean los triggers, que corren con permisos de root.
+GRANT SELECT ON torneo_ucu.* TO 'app_planillero'@'%';
+GRANT INSERT, UPDATE, DELETE ON torneo_ucu.planilla_partido TO 'app_planillero'@'%';
+GRANT INSERT, UPDATE, DELETE ON torneo_ucu.gol TO 'app_planillero'@'%';
+GRANT INSERT, UPDATE, DELETE ON torneo_ucu.tarjeta TO 'app_planillero'@'%';
+GRANT UPDATE ON torneo_ucu.partido TO 'app_planillero'@'%';
 

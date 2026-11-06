@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jugadores - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav></nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Jugadores</h1>
+    <p class="subtitulo">Estudiantes, docentes y funcionarios que pueden integrar los equipos.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta">
+      <h2 id="titulo-form">Nuevo jugador</h2>
+      <form id="form-jugador" class="grilla">
+        <label>CI <input name="ci" required maxlength="15" pattern="[0-9A-Za-z]{1,15}" title="Solo letras y números"></label>
+        <label>Nombre <input name="nombre" required maxlength="50"></label>
+        <label>Apellido <input name="apellido" required maxlength="50"></label>
+        <label>Email <input type="email" name="email" required maxlength="100"></label>
+        <label>Fecha de nacimiento <input type="date" name="fecha_nacimiento" required min="1900-01-01"></label>
+        <label>Facultad <select name="id_facultad" id="sel-facultad" required></select></label>
+        <label>Tipo
+          <select name="tipo" required>
+            <option value="grado">Grado</option>
+            <option value="posgrado">Posgrado</option>
+            <option value="docente">Docente</option>
+            <option value="funcionario">Funcionario</option>
+          </select>
+        </label>
+        <div class="acciones">
+          <button type="submit" id="btn-guardar">Dar de alta</button>
+          <button type="button" class="secundario" id="btn-cancelar" onclick="limpiarFormulario()" hidden>Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Jugadores registrados</h2>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>CI</th><th>Nombre</th><th>Email</th><th>Nacimiento</th><th>Facultad</th><th>Tipo</th><th></th></tr></thead>
+          <tbody id="tabla-jugadores"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    const form = document.getElementById("form-jugador");
+    let jugadores = [];
+    let ciEditando = null;
+
+    form.fecha_nacimiento.max = new Date().toISOString().slice(0, 10);
+
+    async function cargarJugadores() {
+      jugadores = await api("GET", "/jugadores");
+      document.getElementById("tabla-jugadores").innerHTML = jugadores.map(j => `
+        <tr>
+          <td>${escapar(j.ci)}</td>
+          <td>${escapar(j.apellido)}, ${escapar(j.nombre)}</td>
+          <td>${escapar(j.email)}</td>
+          <td>${j.fecha_nacimiento}</td>
+          <td>${escapar(j.facultad)}</td>
+          <td>${j.tipo}</td>
+          <td><div class="acciones">
+            <button class="secundario" onclick="editar('${escapar(j.ci)}')">Editar</button>
+            <button class="peligro" onclick="eliminar('${escapar(j.ci)}')">Eliminar</button>
+          </div></td>
+        </tr>`).join("") || `<tr><td colspan="7" class="vacio">No hay jugadores</td></tr>`;
+    }
+
+    function limpiarFormulario() {
+      ciEditando = null;
+      form.reset();
+      form.ci.readOnly = false;
+      document.getElementById("titulo-form").textContent = "Nuevo jugador";
+      document.getElementById("btn-guardar").textContent = "Dar de alta";
+      document.getElementById("btn-cancelar").hidden = true;
+    }
+
+    function editar(ci) {
+      const j = jugadores.find(x => x.ci === ci);
+      ciEditando = ci;
+      for (const campo of ["ci", "nombre", "apellido", "email", "fecha_nacimiento", "id_facultad", "tipo"]) {
+        form[campo].value = j[campo];
+      }
+      form.ci.readOnly = true;
+      document.getElementById("titulo-form").textContent = `Modificar jugador ${ci}`;
+      document.getElementById("btn-guardar").textContent = "Guardar cambios";
+      document.getElementById("btn-cancelar").hidden = false;
+      form.scrollIntoView();
+    }
+
+    async function eliminar(ci) {
+      if (!confirm(`¿Eliminar al jugador ${ci}?`)) return;
+      if (await ejecutar(() => api("DELETE", `/jugadores/${encodeURIComponent(ci)}`))) cargarJugadores();
+    }
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const cuerpo = Object.fromEntries(new FormData(form));
+      cuerpo.id_facultad = Number(cuerpo.id_facultad);
+      const resultado = await ejecutar(() => ciEditando
+        ? api("PUT", `/jugadores/${encodeURIComponent(ciEditando)}`, cuerpo)
+        : api("POST", "/jugadores", cuerpo));
+      if (resultado) {
+        limpiarFormulario();
+        cargarJugadores();
+      }
+    });
+
+    ejecutar(async () => {
+      const facultades = await api("GET", "/facultades");
+      document.getElementById("sel-facultad").innerHTML = facultades.map(f => opcion(f.id_facultad, f.nombre)).join("");
+      await cargarJugadores();
+    });
+  </script>
+</body>
+</html>

@@ -71,7 +71,7 @@ section.tarjeta {
 }
 
 /* Formularios */
-form.grilla {
+.grilla {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 14px;
@@ -90,11 +90,13 @@ input, select {
 }
 input:focus, select:focus { outline: 2px solid var(--azul-claro); outline-offset: -1px; border-color: var(--azul-claro); }
 input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--azul); }
-form.grilla label.opcion { padding-bottom: 9px; }
+.grilla label.opcion { padding-bottom: 9px; }
 .grilla > button { justify-self: start; }
 .grilla + .tabla-scroll { margin-top: 16px; }
 .filtro { max-width: 340px; margin-bottom: 14px; }
 .tarjeta > .filtro:last-child { margin-bottom: 0; }
+.separado { margin-top: 20px; }
+.camiseta-input { width: 80px; }
 
 /* Botones */
 button {
@@ -172,8 +174,8 @@ td.vacio { color: var(--texto-suave); text-align: center; padding: 18px; }
 
 /* Login */
 .login { max-width: 400px; margin: 48px auto; }
-.login form.grilla { grid-template-columns: 1fr; }
-.login form.grilla > button { justify-self: stretch; }
+.login .grilla { grid-template-columns: 1fr; }
+.login .grilla > button { justify-self: stretch; }
 
 @media (max-width: 600px) {
   main { padding-top: 16px; }

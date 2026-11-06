@@ -1,24 +1,10 @@
-import mysql.connector
 from fastapi import APIRouter, Depends
 
-from comun import conectar_bd, requiere_rol, mensaje_error_bd
+from comun import consultar, requiere_rol
 
 router = APIRouter()
 
 solo_administrador = requiere_rol("administrador")
-
-
-def ejecutar_consulta(rol: str, sql: str, valores: tuple = ()):
-    try:
-        conexion = conectar_bd(rol)
-        cursor = conexion.cursor(dictionary=True)
-        cursor.execute(sql, valores)
-        filas = cursor.fetchall()
-        cursor.close()
-        conexion.close()
-        return filas
-    except mysql.connector.Error as err:
-        return {"error": mensaje_error_bd(err)}
 
 
 @router.get("/consultas/suspendidos")
@@ -35,7 +21,7 @@ def suspendidos_por_fecha(id_torneo: int, numero_fecha: int, rol: str = Depends(
           AND %s BETWEEN s.numero_fecha_inicio AND s.numero_fecha_inicio + s.cantidad_fechas - 1
         ORDER BY e.nombre, j.apellido
     """
-    return ejecutar_consulta(rol, sql, (id_torneo, numero_fecha))
+    return consultar(rol, sql, (id_torneo, numero_fecha))
 
 
 @router.get("/consultas/partidos-mas-tarjetas")
@@ -55,7 +41,7 @@ def partidos_mas_tarjetas(id_torneo: int, rol: str = Depends(solo_administrador)
         ORDER BY total_tarjetas DESC, rojas DESC
         LIMIT 10
     """
-    return ejecutar_consulta(rol, sql, (id_torneo,))
+    return consultar(rol, sql, (id_torneo,))
 
 
 @router.get("/consultas/planillas-pendientes")
@@ -74,4 +60,4 @@ def planillas_pendientes(rol: str = Depends(solo_administrador)):
           AND NOT EXISTS (SELECT 1 FROM planilla_partido pp WHERE pp.id_partido = p.id_partido)
         ORDER BY p.dia, tu.hora_inicio
     """
-    return ejecutar_consulta(rol, sql)
+    return consultar(rol, sql)
