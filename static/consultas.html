@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Consultas - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav>
+        <a href="/admin/partidos">Partidos</a>
+        <a href="/planillero">Planillas</a>
+        <a href="/admin/sanciones">Sanciones</a>
+        <a href="/admin/consultas" aria-current="page">Consultas</a>
+      </nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Consultas</h1>
+    <p class="subtitulo">Consultas sobre partidos, planillas y sanciones de cada edición.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta">
+      <label class="filtro">Torneo <select id="sel-torneo"></select></label>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Suspendidos en una fecha</h2>
+      <form id="form-suspendidos" class="grilla">
+        <label>Fecha N.º <input type="number" name="numero_fecha" min="1" max="50" step="1" required></label>
+        <button type="submit">Consultar</button>
+      </form>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Jugador</th><th>Equipo</th><th>Motivo</th><th>Fechas</th></tr></thead>
+          <tbody id="tabla-suspendidos"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Partidos con más tarjetas</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Fecha</th><th>Partido</th><th>Día</th><th>Amarillas</th><th>Rojas</th><th>Total</th></tr></thead>
+          <tbody id="tabla-tarjetas"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Partidos disputados sin planilla</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Torneo</th><th>Fecha</th><th>Partido</th><th>Día y turno</th><th>Estado</th></tr></thead>
+          <tbody id="tabla-pendientes"></tbody></table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    const selTorneo = document.getElementById("sel-torneo");
+    const formSuspendidos = document.getElementById("form-suspendidos");
+
+    async function cargarSuspendidos() {
+      const fecha = formSuspendidos.numero_fecha.value;
+      if (!fecha) return;
+      const filas = await api("GET", `/consultas/suspendidos?id_torneo=${selTorneo.value}&numero_fecha=${fecha}`);
+      document.getElementById("tabla-suspendidos").innerHTML = filas.map(f => `
+        <tr><td>${escapar(f.apellido)}, ${escapar(f.nombre)}</td><td>${escapar(f.equipo || "-")}</td>
+          <td><span class="etiqueta${f.motivo === "roja" ? " roja" : f.motivo === "disciplinaria" ? "" : " amarilla"}">${escapar(f.motivo)}</span></td><td>${f.numero_fecha_inicio} a ${f.numero_fecha_fin}</td></tr>`
+      ).join("") || `<tr><td colspan="4" class="vacio">Nadie está suspendido en esa fecha</td></tr>`;
+    }
+
+    async function cargarTarjetas() {
+      const filas = await api("GET", `/consultas/partidos-mas-tarjetas?id_torneo=${selTorneo.value}`);
+      document.getElementById("tabla-tarjetas").innerHTML = filas.map(f => `
+        <tr><td>${f.numero_fecha}</td><td>${escapar(f.equipo_local)} vs ${escapar(f.equipo_visitante)}</td>
+          <td>${f.dia}</td><td>${f.amarillas}</td><td>${f.rojas}</td><td>${f.total_tarjetas}</td></tr>`
+      ).join("") || `<tr><td colspan="6" class="vacio">Sin tarjetas en esta edición</td></tr>`;
+    }
+
+    async function cargarPendientes() {
+      const filas = await api("GET", "/consultas/planillas-pendientes");
+      document.getElementById("tabla-pendientes").innerHTML = filas.map(f => `
+        <tr><td>${escapar(f.torneo)}</td><td>${f.numero_fecha}</td>
+          <td>${escapar(f.equipo_local)} vs ${escapar(f.equipo_visitante)}</td>
+          <td>${f.dia} ${f.hora_inicio}</td><td>${f.estado}</td></tr>`
+      ).join("") || `<tr><td colspan="5" class="vacio">No hay planillas pendientes</td></tr>`;
+    }
+
+    selTorneo.addEventListener("change", () => ejecutar(async () => { await cargarTarjetas(); await cargarSuspendidos(); }));
+    formSuspendidos.addEventListener("submit", (evento) => { evento.preventDefault(); ejecutar(cargarSuspendidos); });
+
+    ejecutar(async () => {
+      const opciones = await api("GET", "/partidos/opciones");
+      selTorneo.innerHTML = opciones.torneos.map(t => opcion(t.id_torneo, `${t.nombre} ${t.anio}-${t.semestre}`)).join("");
+      await cargarTarjetas();
+      await cargarPendientes();
+    });
+  </script>
+</body>
+</html>

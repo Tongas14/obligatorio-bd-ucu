@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra"><span class="marca">Torneo Interfacultades UCU</span></div>
+  </header>
+  <main>
+    <section class="tarjeta login">
+      <h1>Ingresar</h1>
+      <p class="subtitulo">Sistema de gestión del Torneo Interfacultades de Fútbol 5.</p>
+      <div id="mensaje" class="mensaje"></div>
+      <form id="form-login" class="grilla">
+        <label>Correo <input type="email" name="correo" required maxlength="100" autocomplete="username"></label>
+        <label>Contraseña <input type="password" name="contraseña" required maxlength="255" autocomplete="current-password"></label>
+        <button type="submit">Ingresar</button>
+      </form>
+    </section>
+  </main>
+  <script src="/static/comun.js"></script>
+  <script>
+    document.getElementById("form-login").addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const datos = Object.fromEntries(new FormData(evento.target));
+      const resultado = await ejecutar(() => api("POST", "/login", datos));
+      if (resultado) location.href = resultado.rol === "planillero" ? "/planillero" : "/admin/partidos";
+    });
+  </script>
+</body>
+</html>

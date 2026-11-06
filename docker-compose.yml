@@ -10,6 +10,7 @@ services:
       - DB_USER=torneo_admin
       - DB_PASSWORD=admin123
       - DB_NAME=torneo_ucu
+      - TZ=America/Montevideo
     depends_on:
       - db
     volumes:
@@ -24,6 +25,7 @@ services:
       - MYSQL_DATABASE=torneo_ucu
       - MYSQL_USER=torneo_admin
       - MYSQL_PASSWORD=admin123
+      - TZ=America/Montevideo
     volumes:
       - db_data:/var/lib/mysql
       - ./base_de_datos:/docker-entrypoint-initdb.d

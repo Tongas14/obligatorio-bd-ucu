@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 USE torneo_ucu;
 
 CREATE TABLE login (
@@ -77,7 +78,7 @@ CREATE TABLE turno (
 );
 
 CREATE TABLE partido (
-    id_partido INT PRIMARY KEY,
+    id_partido INT AUTO_INCREMENT PRIMARY KEY,
     id_torneo INT NOT NULL,
     numero_fecha INT NOT NULL,
     id_equipo_local INT NOT NULL,
@@ -87,6 +88,8 @@ CREATE TABLE partido (
     nombre_cancha VARCHAR(50) NOT NULL,
     id_complejo INT NOT NULL,
     estado ENUM('programado', 'jugado', 'postergado', 'cancelado') NOT NULL,
+    CHECK (id_equipo_local <> id_equipo_visitante),
+    CHECK (numero_fecha >= 1),
     FOREIGN KEY (id_torneo) REFERENCES torneo(id_torneo),
     FOREIGN KEY (id_equipo_local) REFERENCES equipo(id_equipo),
     FOREIGN KEY (id_equipo_visitante) REFERENCES equipo(id_equipo),
@@ -105,34 +108,41 @@ CREATE TABLE planilla_partido (
 );
 
 CREATE TABLE gol (
-    id_gol INT PRIMARY KEY,
+    id_gol INT AUTO_INCREMENT PRIMARY KEY,
     id_partido INT NOT NULL,
     ci_jugador VARCHAR(50) NOT NULL,
     minuto INT NOT NULL,
-    autogol BOOLEAN DEFAULT FALSE,
+    autogol BOOLEAN NOT NULL DEFAULT FALSE,
+    CHECK (minuto BETWEEN 0 AND 60),
     FOREIGN KEY (id_partido) REFERENCES partido(id_partido),
     FOREIGN KEY (ci_jugador) REFERENCES jugador(ci)
 );
 
 CREATE TABLE tarjeta (
-    id_tarjeta INT PRIMARY KEY,
+    id_tarjeta INT AUTO_INCREMENT PRIMARY KEY,
     id_partido INT NOT NULL,
     ci_jugador VARCHAR(50) NOT NULL,
     minuto INT NOT NULL,
     color ENUM('amarilla', 'roja') NOT NULL,
+    CHECK (minuto BETWEEN 0 AND 60),
     FOREIGN KEY (id_partido) REFERENCES partido(id_partido),
     FOREIGN KEY (ci_jugador) REFERENCES jugador(ci)
 );
 
+-- id_tarjeta_origen: tarjeta que generó la sanción automática (NULL en las disciplinarias)
 CREATE TABLE sancion_jugador (
-    id_sancion INT PRIMARY KEY,
+    id_sancion INT AUTO_INCREMENT PRIMARY KEY,
     ci_jugador VARCHAR(50) NOT NULL,
     id_torneo INT NOT NULL,
     motivo ENUM('roja', 'acumulación de amarillas', 'disciplinaria') NOT NULL,
     numero_fecha_inicio INT NOT NULL,
     cantidad_fechas INT NOT NULL,
+    id_tarjeta_origen INT NULL,
+    CHECK (numero_fecha_inicio >= 1),
+    CHECK (cantidad_fechas >= 1),
     FOREIGN KEY (ci_jugador) REFERENCES jugador(ci),
-    FOREIGN KEY (id_torneo) REFERENCES torneo(id_torneo)
+    FOREIGN KEY (id_torneo) REFERENCES torneo(id_torneo),
+    FOREIGN KEY (id_tarjeta_origen) REFERENCES tarjeta(id_tarjeta)
 );
 
 
@@ -197,7 +207,331 @@ INSERT INTO tarjeta VALUES
 (1, 1, '888', 40, 'roja'), (2, 1, '222', 20, 'amarilla');
 
 INSERT INTO sancion_jugador VALUES 
-(1, '888', 1, 'roja', 2, 1);
+(1, '888', 1, 'roja', 2, 1, 1);
+
+
+-- Reglas de partidos, planillas y sanciones.
+-- Van después de los datos de prueba para que la regla de 48 horas no los bloquee.
+
+DELIMITER //
+
+-- Momento en que termina un partido (día + hora de fin del turno)
+CREATE FUNCTION fn_fin_partido(p_dia DATE, p_id_turno INT) RETURNS DATETIME
+READS SQL DATA
+BEGIN
+    DECLARE v_hora_fin TIME;
+    SELECT hora_fin INTO v_hora_fin FROM turno WHERE id_turno = p_id_turno;
+    RETURN TIMESTAMP(p_dia, v_hora_fin);
+END//
+
+-- Un jugador está suspendido en una fecha si alguna sanción la abarca:
+-- desde numero_fecha_inicio hasta numero_fecha_inicio + cantidad_fechas - 1
+CREATE FUNCTION fn_jugador_suspendido(p_ci VARCHAR(50), p_id_torneo INT, p_numero_fecha INT) RETURNS BOOLEAN
+READS SQL DATA
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM sancion_jugador
+        WHERE ci_jugador = p_ci
+          AND id_torneo = p_id_torneo
+          AND p_numero_fecha BETWEEN numero_fecha_inicio AND numero_fecha_inicio + cantidad_fechas - 1
+    );
+END//
+
+CREATE PROCEDURE sp_validar_partido(
+    IN p_id_partido INT, IN p_id_torneo INT, IN p_numero_fecha INT,
+    IN p_local INT, IN p_visitante INT, IN p_dia DATE, IN p_id_turno INT,
+    IN p_nombre_cancha VARCHAR(50), IN p_id_complejo INT, IN p_estado VARCHAR(20))
+BEGIN
+    IF p_local = p_visitante THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un equipo no puede enfrentarse a sí mismo';
+    END IF;
+
+    IF (SELECT COUNT(*) FROM equipo WHERE id_equipo IN (p_local, p_visitante) AND id_torneo = p_id_torneo) <> 2 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ambos equipos deben pertenecer a la edición del torneo del partido';
+    END IF;
+
+    IF (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = p_local) < 5
+       OR (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = p_visitante) < 5 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ambos equipos deben tener al menos 5 jugadores en su plantel';
+    END IF;
+
+    IF p_estado <> 'cancelado' THEN
+        IF EXISTS (
+            SELECT 1 FROM partido
+            WHERE id_torneo = p_id_torneo AND id_partido <> p_id_partido AND estado <> 'cancelado'
+              AND ((id_equipo_local = p_local AND id_equipo_visitante = p_visitante)
+                OR (id_equipo_local = p_visitante AND id_equipo_visitante = p_local))
+        ) THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Estos equipos ya tienen un partido no cancelado en esta edición';
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 FROM partido
+            WHERE id_torneo = p_id_torneo AND numero_fecha = p_numero_fecha
+              AND id_partido <> p_id_partido AND estado <> 'cancelado'
+              AND (id_equipo_local IN (p_local, p_visitante) OR id_equipo_visitante IN (p_local, p_visitante))
+        ) THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Uno de los equipos ya tiene un partido en esa fecha del torneo';
+        END IF;
+    END IF;
+
+    IF p_estado NOT IN ('cancelado', 'postergado') AND EXISTS (
+        SELECT 1 FROM partido
+        WHERE nombre_cancha = p_nombre_cancha AND id_complejo = p_id_complejo
+          AND dia = p_dia AND id_turno = p_id_turno
+          AND id_partido <> p_id_partido AND estado NOT IN ('cancelado', 'postergado')
+    ) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cancha ya tiene un partido asignado en ese día y turno';
+    END IF;
+
+    IF p_estado = 'jugado' AND fn_fin_partido(p_dia, p_id_turno) > NOW() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un partido solo puede marcarse como jugado si su día y turno ya pasaron';
+    END IF;
+END//
+
+-- Controla que se pueda cargar o corregir la planilla, goles o tarjetas de un partido
+CREATE PROCEDURE sp_validar_carga_partido(IN p_id_partido INT)
+BEGIN
+    DECLARE v_estado VARCHAR(20);
+    DECLARE v_fin DATETIME;
+
+    SELECT estado, fn_fin_partido(dia, id_turno) INTO v_estado, v_fin
+    FROM partido WHERE id_partido = p_id_partido;
+
+    IF v_estado IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El partido no existe';
+    END IF;
+    IF v_estado IN ('cancelado', 'postergado') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No se puede cargar la planilla de un partido cancelado o postergado';
+    END IF;
+    IF v_fin > NOW() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El partido todavía no se disputó';
+    END IF;
+    IF v_estado = 'jugado' AND NOW() > v_fin + INTERVAL 48 HOUR THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Pasaron más de 48 horas desde el partido, ya no se puede corregir';
+    END IF;
+END//
+
+CREATE PROCEDURE sp_validar_jugador_en_planilla(IN p_id_partido INT, IN p_ci VARCHAR(50))
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM planilla_partido WHERE id_partido = p_id_partido AND ci_jugador = p_ci) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador no figura en la planilla del partido';
+    END IF;
+END//
+
+CREATE PROCEDURE sp_validar_planilla(IN p_id_partido INT, IN p_ci VARCHAR(50), IN p_id_equipo INT)
+BEGIN
+    DECLARE v_id_torneo INT;
+    DECLARE v_numero_fecha INT;
+
+    CALL sp_validar_carga_partido(p_id_partido);
+
+    SELECT id_torneo, numero_fecha INTO v_id_torneo, v_numero_fecha
+    FROM partido
+    WHERE id_partido = p_id_partido AND p_id_equipo IN (id_equipo_local, id_equipo_visitante);
+
+    IF v_id_torneo IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El equipo no juega este partido';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM equipo_jugador_torneo WHERE id_equipo = p_id_equipo AND ci_jugador = p_ci) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador no pertenece al plantel de su equipo';
+    END IF;
+    IF fn_jugador_suspendido(p_ci, v_id_torneo, v_numero_fecha) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador está suspendido para esta fecha';
+    END IF;
+END//
+
+CREATE TRIGGER trg_partido_bi BEFORE INSERT ON partido
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_partido(0, NEW.id_torneo, NEW.numero_fecha, NEW.id_equipo_local, NEW.id_equipo_visitante,
+                            NEW.dia, NEW.id_turno, NEW.nombre_cancha, NEW.id_complejo, NEW.estado);
+END//
+
+CREATE TRIGGER trg_partido_bu BEFORE UPDATE ON partido
+FOR EACH ROW
+BEGIN
+    IF OLD.estado = 'jugado' AND NOW() > fn_fin_partido(OLD.dia, OLD.id_turno) + INTERVAL 48 HOUR THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Pasaron más de 48 horas desde el partido, ya no se puede modificar';
+    END IF;
+    IF (OLD.id_torneo <> NEW.id_torneo OR OLD.id_equipo_local <> NEW.id_equipo_local
+        OR OLD.id_equipo_visitante <> NEW.id_equipo_visitante)
+       AND EXISTS (SELECT 1 FROM planilla_partido WHERE id_partido = OLD.id_partido) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No se pueden cambiar los equipos de un partido con planilla cargada';
+    END IF;
+    IF NEW.estado IN ('cancelado', 'postergado')
+       AND EXISTS (SELECT 1 FROM planilla_partido WHERE id_partido = OLD.id_partido) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No se puede cancelar ni postergar un partido con planilla cargada';
+    END IF;
+    CALL sp_validar_partido(NEW.id_partido, NEW.id_torneo, NEW.numero_fecha, NEW.id_equipo_local, NEW.id_equipo_visitante,
+                            NEW.dia, NEW.id_turno, NEW.nombre_cancha, NEW.id_complejo, NEW.estado);
+END//
+
+CREATE TRIGGER trg_partido_bd BEFORE DELETE ON partido
+FOR EACH ROW
+BEGIN
+    IF OLD.estado = 'jugado' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un partido jugado no se puede eliminar';
+    END IF;
+END//
+
+CREATE TRIGGER trg_planilla_bi BEFORE INSERT ON planilla_partido
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_planilla(NEW.id_partido, NEW.ci_jugador, NEW.id_equipo);
+END//
+
+CREATE TRIGGER trg_planilla_bu BEFORE UPDATE ON planilla_partido
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_planilla(NEW.id_partido, NEW.ci_jugador, NEW.id_equipo);
+END//
+
+CREATE TRIGGER trg_planilla_bd BEFORE DELETE ON planilla_partido
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_carga_partido(OLD.id_partido);
+    IF EXISTS (SELECT 1 FROM gol WHERE id_partido = OLD.id_partido AND ci_jugador = OLD.ci_jugador)
+       OR EXISTS (SELECT 1 FROM tarjeta WHERE id_partido = OLD.id_partido AND ci_jugador = OLD.ci_jugador) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador tiene goles o tarjetas en el partido, elimínelos primero';
+    END IF;
+END//
+
+CREATE TRIGGER trg_gol_bi BEFORE INSERT ON gol
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_carga_partido(NEW.id_partido);
+    CALL sp_validar_jugador_en_planilla(NEW.id_partido, NEW.ci_jugador);
+END//
+
+CREATE TRIGGER trg_gol_bu BEFORE UPDATE ON gol
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_carga_partido(OLD.id_partido);
+    CALL sp_validar_carga_partido(NEW.id_partido);
+    CALL sp_validar_jugador_en_planilla(NEW.id_partido, NEW.ci_jugador);
+END//
+
+CREATE TRIGGER trg_gol_bd BEFORE DELETE ON gol
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_carga_partido(OLD.id_partido);
+END//
+
+CREATE TRIGGER trg_tarjeta_bi BEFORE INSERT ON tarjeta
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_carga_partido(NEW.id_partido);
+    CALL sp_validar_jugador_en_planilla(NEW.id_partido, NEW.ci_jugador);
+    IF NEW.color = 'roja' AND EXISTS (
+        SELECT 1 FROM tarjeta WHERE id_partido = NEW.id_partido AND ci_jugador = NEW.ci_jugador AND color = 'roja'
+    ) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador ya tiene una tarjeta roja en este partido';
+    END IF;
+    IF NEW.color = 'amarilla' AND (
+        SELECT COUNT(*) FROM tarjeta WHERE id_partido = NEW.id_partido AND ci_jugador = NEW.ci_jugador AND color = 'amarilla'
+    ) >= 2 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador ya tiene 2 tarjetas amarillas en este partido';
+    END IF;
+END//
+
+-- Las tarjetas no se modifican, se eliminan y se vuelven a cargar (así las sanciones quedan bien)
+CREATE TRIGGER trg_tarjeta_bu BEFORE UPDATE ON tarjeta
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Para corregir una tarjeta elimínela y vuelva a cargarla';
+END//
+
+-- Roja o 3 amarillas en la edición: 1 fecha de suspensión, en la fecha siguiente
+CREATE TRIGGER trg_tarjeta_ai AFTER INSERT ON tarjeta
+FOR EACH ROW
+BEGIN
+    DECLARE v_id_torneo INT;
+    DECLARE v_numero_fecha INT;
+    DECLARE v_amarillas INT;
+
+    SELECT id_torneo, numero_fecha INTO v_id_torneo, v_numero_fecha
+    FROM partido WHERE id_partido = NEW.id_partido;
+
+    IF NEW.color = 'roja' THEN
+        INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas, id_tarjeta_origen)
+        VALUES (NEW.ci_jugador, v_id_torneo, 'roja', v_numero_fecha + 1, 1, NEW.id_tarjeta);
+    ELSE
+        SELECT COUNT(*) INTO v_amarillas
+        FROM tarjeta t JOIN partido p ON p.id_partido = t.id_partido
+        WHERE t.ci_jugador = NEW.ci_jugador AND p.id_torneo = v_id_torneo AND t.color = 'amarilla';
+
+        IF v_amarillas % 3 = 0 THEN
+            INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas, id_tarjeta_origen)
+            VALUES (NEW.ci_jugador, v_id_torneo, 'acumulación de amarillas', v_numero_fecha + 1, 1, NEW.id_tarjeta);
+        END IF;
+    END IF;
+END//
+
+-- Al eliminar una tarjeta se elimina la sanción que generó. Si era amarilla,
+-- se dejan solo las sanciones por acumulación que siguen correspondiendo (una cada 3)
+CREATE TRIGGER trg_tarjeta_bd BEFORE DELETE ON tarjeta
+FOR EACH ROW
+BEGIN
+    DECLARE v_id_torneo INT;
+    DECLARE v_amarillas INT;
+    DECLARE v_sanciones INT;
+
+    CALL sp_validar_carga_partido(OLD.id_partido);
+    DELETE FROM sancion_jugador WHERE id_tarjeta_origen = OLD.id_tarjeta;
+
+    IF OLD.color = 'amarilla' THEN
+        SELECT id_torneo INTO v_id_torneo FROM partido WHERE id_partido = OLD.id_partido;
+
+        SELECT COUNT(*) INTO v_amarillas
+        FROM tarjeta t JOIN partido p ON p.id_partido = t.id_partido
+        WHERE t.ci_jugador = OLD.ci_jugador AND p.id_torneo = v_id_torneo
+          AND t.color = 'amarilla' AND t.id_tarjeta <> OLD.id_tarjeta;
+
+        SELECT COUNT(*) INTO v_sanciones
+        FROM sancion_jugador
+        WHERE ci_jugador = OLD.ci_jugador AND id_torneo = v_id_torneo AND motivo = 'acumulación de amarillas';
+
+        IF v_sanciones > FLOOR(v_amarillas / 3) THEN
+            DELETE FROM sancion_jugador
+            WHERE ci_jugador = OLD.ci_jugador AND id_torneo = v_id_torneo AND motivo = 'acumulación de amarillas'
+            ORDER BY id_sancion DESC
+            LIMIT 1;
+        END IF;
+    END IF;
+END//
+
+-- Una sanción disciplinaria no puede abarcar fechas en las que el jugador ya figura en una planilla
+CREATE PROCEDURE sp_validar_sancion(IN p_ci VARCHAR(50), IN p_id_torneo INT, IN p_motivo VARCHAR(30),
+                                    IN p_inicio INT, IN p_cantidad INT)
+BEGIN
+    IF p_motivo = 'disciplinaria' THEN
+        IF NOT EXISTS (SELECT 1 FROM equipo_jugador_torneo WHERE ci_jugador = p_ci AND id_torneo = p_id_torneo) THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador no está inscripto en ningún equipo de esa edición';
+        END IF;
+        IF EXISTS (
+            SELECT 1 FROM planilla_partido pp JOIN partido p ON p.id_partido = pp.id_partido
+            WHERE pp.ci_jugador = p_ci AND p.id_torneo = p_id_torneo
+              AND p.numero_fecha BETWEEN p_inicio AND p_inicio + p_cantidad - 1
+        ) THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El jugador ya figura en una planilla de una fecha que abarca la sanción';
+        END IF;
+    END IF;
+END//
+
+CREATE TRIGGER trg_sancion_bi BEFORE INSERT ON sancion_jugador
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_sancion(NEW.ci_jugador, NEW.id_torneo, NEW.motivo, NEW.numero_fecha_inicio, NEW.cantidad_fechas);
+END//
+
+CREATE TRIGGER trg_sancion_bu BEFORE UPDATE ON sancion_jugador
+FOR EACH ROW
+BEGIN
+    CALL sp_validar_sancion(NEW.ci_jugador, NEW.id_torneo, NEW.motivo, NEW.numero_fecha_inicio, NEW.cantidad_fechas);
+END//
+
+DELIMITER ;
 
 
 CREATE USER 'app_admin'@'%' IDENTIFIED BY 'admin123';
@@ -207,4 +541,9 @@ GRANT ALL PRIVILEGES ON torneo_ucu.* TO 'app_admin'@'%';
 CREATE USER 'app_planillero'@'%' IDENTIFIED BY 'plani123';
 
 GRANT SELECT, INSERT, UPDATE ON torneo_ucu.* TO 'app_planillero'@'%';
+
+-- El planillero corrige planillas, goles y tarjetas (nunca partidos ni sanciones a mano)
+GRANT DELETE ON torneo_ucu.planilla_partido TO 'app_planillero'@'%';
+GRANT DELETE ON torneo_ucu.gol TO 'app_planillero'@'%';
+GRANT DELETE ON torneo_ucu.tarjeta TO 'app_planillero'@'%';
 

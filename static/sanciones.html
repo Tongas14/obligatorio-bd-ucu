@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sanciones - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav>
+        <a href="/admin/partidos">Partidos</a>
+        <a href="/planillero">Planillas</a>
+        <a href="/admin/sanciones" aria-current="page">Sanciones</a>
+        <a href="/admin/consultas">Consultas</a>
+      </nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Sanciones</h1>
+    <p class="subtitulo">Las sanciones por tarjeta roja y por 3 amarillas se generan solas al cargar tarjetas en la planilla.
+       Acá se gestionan las sanciones disciplinarias.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta">
+      <h2 id="titulo-form">Nueva sanción disciplinaria</h2>
+      <form id="form-sancion" class="grilla">
+        <label>Torneo <select name="id_torneo" id="sel-torneo" required></select></label>
+        <label>Jugador <select name="ci_jugador" id="sel-jugador" required></select></label>
+        <label>Desde la fecha N.º <input type="number" name="numero_fecha_inicio" min="1" max="50" step="1" required></label>
+        <label>Cantidad de fechas <input type="number" name="cantidad_fechas" min="1" max="50" step="1" required></label>
+        <div class="acciones">
+          <button type="submit" id="btn-guardar">Dar de alta</button>
+          <button type="button" class="secundario" id="btn-cancelar" onclick="limpiarFormulario()" hidden>Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Sanciones de la edición</h2>
+      <div class="tabla-scroll">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Jugador</th><th>Equipo</th><th>Motivo</th><th>Fechas</th><th></th></tr>
+          </thead>
+          <tbody id="tabla-sanciones"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    let sanciones = [];
+    let idEditando = null;
+    const form = document.getElementById("form-sancion");
+
+    async function cargarJugadores(idTorneo, ciSeleccionado) {
+      const jugadores = await api("GET", `/sanciones/jugadores?id_torneo=${idTorneo}`);
+      document.getElementById("sel-jugador").innerHTML = opcion("", "Elegir...") + jugadores.map(j =>
+        opcion(j.ci, `${j.apellido}, ${j.nombre} (${j.equipo}) - CI ${j.ci}`)).join("");
+      if (ciSeleccionado) form.ci_jugador.value = ciSeleccionado;
+    }
+
+    async function cargarSanciones() {
+      const idTorneo = form.id_torneo.value;
+      sanciones = await api("GET", `/sanciones?id_torneo=${idTorneo}`);
+      document.getElementById("tabla-sanciones").innerHTML = sanciones.map(s => `
+        <tr>
+          <td>${s.id_sancion}</td>
+          <td>${escapar(s.apellido)}, ${escapar(s.nombre)} (CI ${escapar(s.ci_jugador)})</td>
+          <td>${escapar(s.equipo || "-")}</td>
+          <td><span class="etiqueta${s.motivo === "roja" ? " roja" : s.motivo === "disciplinaria" ? "" : " amarilla"}">${escapar(s.motivo)}</span></td>
+          <td>${s.cantidad_fechas === 1 ? `Fecha ${s.numero_fecha_inicio}` : `Fechas ${s.numero_fecha_inicio} a ${s.numero_fecha_fin}`}</td>
+          <td>${s.motivo === "disciplinaria" ? `<div class="acciones">
+            <button class="secundario" onclick="editar(${s.id_sancion})">Editar</button>
+            <button class="peligro" onclick="eliminar(${s.id_sancion})">Eliminar</button></div>` : `<span class="automatica">Automática</span>`}
+          </td>
+        </tr>`).join("") || `<tr><td colspan="6" class="vacio">No hay sanciones</td></tr>`;
+    }
+
+    function limpiarFormulario() {
+      idEditando = null;
+      form.ci_jugador.value = "";
+      form.numero_fecha_inicio.value = "";
+      form.cantidad_fechas.value = "";
+      document.getElementById("titulo-form").textContent = "Nueva sanción disciplinaria";
+      document.getElementById("btn-guardar").textContent = "Dar de alta";
+      document.getElementById("btn-cancelar").hidden = true;
+    }
+
+    function editar(id) {
+      const s = sanciones.find(x => x.id_sancion === id);
+      idEditando = id;
+      form.ci_jugador.value = s.ci_jugador;
+      form.numero_fecha_inicio.value = s.numero_fecha_inicio;
+      form.cantidad_fechas.value = s.cantidad_fechas;
+      document.getElementById("titulo-form").textContent = `Modificar sanción ${id}`;
+      document.getElementById("btn-guardar").textContent = "Guardar cambios";
+      document.getElementById("btn-cancelar").hidden = false;
+    }
+
+    async function eliminar(id) {
+      if (!confirm(`¿Eliminar la sanción ${id}?`)) return;
+      if (await ejecutar(() => api("DELETE", `/sanciones/${id}`))) cargarSanciones();
+    }
+
+    form.id_torneo.addEventListener("change", () => ejecutar(async () => {
+      limpiarFormulario();
+      await cargarJugadores(form.id_torneo.value);
+      await cargarSanciones();
+    }));
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const d = Object.fromEntries(new FormData(form));
+      const cuerpo = {
+        ci_jugador: d.ci_jugador, id_torneo: Number(d.id_torneo),
+        numero_fecha_inicio: Number(d.numero_fecha_inicio), cantidad_fechas: Number(d.cantidad_fechas),
+      };
+      const resultado = await ejecutar(() => idEditando
+        ? api("PUT", `/sanciones/${idEditando}`, cuerpo)
+        : api("POST", "/sanciones", cuerpo));
+      if (resultado) {
+        limpiarFormulario();
+        cargarSanciones();
+      }
+    });
+
+    ejecutar(async () => {
+      const opciones = await api("GET", "/partidos/opciones");
+      document.getElementById("sel-torneo").innerHTML = opciones.torneos.map(t =>
+        opcion(t.id_torneo, `${t.nombre} ${t.anio}-${t.semestre}`)).join("");
+      await cargarJugadores(form.id_torneo.value);
+      await cargarSanciones();
+    });
+  </script>
+</body>
+</html>

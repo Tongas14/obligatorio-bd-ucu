@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planillas - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <!-- El planillero solo ve esta sección; los enlaces de admin se agregan solo si el rol es administrador -->
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav id="nav">
+        <a href="/planillero" aria-current="page">Planillas</a>
+      </nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Planilla de juego</h1>
+    <p class="subtitulo">Elija un partido disputado y cargue los jugadores que participaron, los goles y las tarjetas.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta">
+      <label class="filtro">Partido disputado
+        <select id="sel-partido"></select>
+      </label>
+    </section>
+
+    <div id="detalle" hidden>
+      <section class="tarjeta">
+        <div class="marcador" id="marcador"></div>
+        <p class="info-partido" id="info-partido"></p>
+      </section>
+
+      <section class="tarjeta">
+        <h2>1. Jugadores que participaron</h2>
+        <form id="form-planilla">
+          <div class="equipos" id="equipos"></div>
+          <p class="pie"><button type="submit" id="btn-planilla">Guardar planilla</button></p>
+        </form>
+      </section>
+
+      <section class="tarjeta">
+        <h2>2. Goles</h2>
+        <form id="form-gol" class="grilla">
+          <label>Jugador <select name="ci_jugador" class="sel-en-planilla" required></select></label>
+          <label>Minuto <input type="number" name="minuto" min="0" max="60" step="1" required></label>
+          <label class="opcion"><input type="checkbox" name="autogol"> Autogol (suma al rival)</label>
+          <button type="submit">Registrar gol</button>
+        </form>
+        <div class="tabla-scroll">
+          <table><thead><tr><th>Minuto</th><th>Jugador</th><th>Equipo</th><th>Tipo</th><th></th></tr></thead>
+            <tbody id="tabla-goles"></tbody></table>
+        </div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>3. Tarjetas</h2>
+        <form id="form-tarjeta" class="grilla">
+          <label>Jugador <select name="ci_jugador" class="sel-en-planilla" required></select></label>
+          <label>Minuto <input type="number" name="minuto" min="0" max="60" step="1" required></label>
+          <label>Color
+            <select name="color" required>
+              <option value="amarilla">Amarilla</option>
+              <option value="roja">Roja</option>
+            </select>
+          </label>
+          <button type="submit">Registrar tarjeta</button>
+        </form>
+        <div class="tabla-scroll">
+          <table><thead><tr><th>Minuto</th><th>Jugador</th><th>Equipo</th><th>Color</th><th></th></tr></thead>
+            <tbody id="tabla-tarjetas"></tbody></table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    const selPartido = document.getElementById("sel-partido");
+    let planilla = null;
+
+    function nombreEquipo(idEquipo) {
+      const equipo = planilla.equipos.find(e => e.id_equipo === idEquipo);
+      return equipo ? equipo.nombre : "";
+    }
+
+    async function cargarPartidos(idSeleccionado) {
+      const partidos = await api("GET", "/planillas/partidos");
+      selPartido.innerHTML = opcion("", partidos.length ? "Elegir partido..." : "No hay partidos disputados") +
+        partidos.map(p => opcion(p.id_partido,
+          `Fecha ${p.numero_fecha} - ${p.equipo_local} vs ${p.equipo_visitante} (${p.dia} ${p.hora_inicio})` +
+          (p.planilla_editable ? "" : " - cerrada"))).join("");
+      if (idSeleccionado) selPartido.value = idSeleccionado;
+    }
+
+    async function cargarPlanilla() {
+      const id = selPartido.value;
+      document.getElementById("detalle").hidden = !id;
+      if (!id) return;
+      planilla = await api("GET", `/planillas/${id}`);
+      const p = planilla.partido;
+      const editable = p.planilla_editable;
+
+      document.getElementById("marcador").innerHTML = `
+        <span class="equipo">${escapar(p.equipo_local)}</span>
+        <span class="goles">${p.goles_local} - ${p.goles_visitante}</span>
+        <span class="equipo">${escapar(p.equipo_visitante)}</span>`;
+      document.getElementById("info-partido").textContent =
+        `${p.torneo} · Fecha ${p.numero_fecha} · ${p.dia} ${p.hora_inicio}-${p.hora_fin} · ` +
+        `${p.complejo} - ${p.nombre_cancha} · Estado: ${p.estado}` +
+        (editable ? "" : " · Pasaron más de 48 horas: la planilla ya no se puede corregir");
+
+      document.getElementById("equipos").innerHTML = planilla.equipos.map(e => `
+        <div>
+          <h3>${escapar(e.nombre)}</h3>
+          ${e.jugadores.map(j => `
+            <label class="opcion">
+              <input type="checkbox" name="jugador" value="${escapar(j.ci)}" data-equipo="${e.id_equipo}"
+                ${j.en_planilla ? "checked" : ""} ${j.suspendido || !editable ? "disabled" : ""}>
+              <span class="camiseta">${j.numero_camiseta ?? ""}</span> ${escapar(j.apellido)}, ${escapar(j.nombre)}
+              ${j.suspendido ? '<span class="suspendido">(suspendido)</span>' : ""}
+            </label>`).join("")}
+        </div>`).join("");
+
+      const enPlanilla = planilla.equipos.flatMap(e =>
+        e.jugadores.filter(j => j.en_planilla).map(j => ({ ...j, equipo: e.nombre })));
+      document.querySelectorAll(".sel-en-planilla").forEach(sel => {
+        sel.innerHTML = opcion("", enPlanilla.length ? "Elegir..." : "Primero guarde la planilla") +
+          enPlanilla.map(j => opcion(j.ci, `${j.apellido}, ${j.nombre} (${j.equipo})`)).join("");
+      });
+
+      document.getElementById("tabla-goles").innerHTML = planilla.goles.map(g => `
+        <tr><td>${g.minuto}'</td><td>${escapar(g.apellido)}, ${escapar(g.nombre)}</td>
+          <td>${escapar(nombreEquipo(g.id_equipo))}</td><td>${g.autogol ? "Autogol" : "Gol"}</td>
+          <td><button class="peligro" onclick="eliminarGol(${g.id_gol})" ${editable ? "" : "disabled"}>Eliminar</button></td></tr>`
+      ).join("") || `<tr><td colspan="5" class="vacio">Sin goles</td></tr>`;
+
+      document.getElementById("tabla-tarjetas").innerHTML = planilla.tarjetas.map(t => `
+        <tr><td>${t.minuto}'</td><td>${escapar(t.apellido)}, ${escapar(t.nombre)}</td>
+          <td>${escapar(nombreEquipo(t.id_equipo))}</td><td><span class="etiqueta ${t.color}">${t.color}</span></td>
+          <td><button class="peligro" onclick="eliminarTarjeta(${t.id_tarjeta})" ${editable ? "" : "disabled"}>Eliminar</button></td></tr>`
+      ).join("") || `<tr><td colspan="5" class="vacio">Sin tarjetas</td></tr>`;
+
+      document.querySelectorAll("#detalle button[type=submit]").forEach(b => b.disabled = !editable);
+    }
+
+    async function recargar() {
+      await cargarPartidos(selPartido.value);
+      await cargarPlanilla();
+    }
+
+    async function eliminarGol(id) {
+      if (!confirm("¿Eliminar el gol?")) return;
+      if (await ejecutar(() => api("DELETE", `/planillas/${selPartido.value}/goles/${id}`))) recargar();
+    }
+
+    async function eliminarTarjeta(id) {
+      if (!confirm("¿Eliminar la tarjeta? Si generó una sanción automática también se elimina.")) return;
+      if (await ejecutar(() => api("DELETE", `/planillas/${selPartido.value}/tarjetas/${id}`))) recargar();
+    }
+
+    selPartido.addEventListener("change", () => ejecutar(cargarPlanilla));
+
+    document.getElementById("form-planilla").addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const jugadores = [...document.querySelectorAll("input[name=jugador]:checked")]
+        .map(c => ({ ci: c.value, id_equipo: Number(c.dataset.equipo) }));
+      if (jugadores.length === 0) {
+        mostrarMensaje("Marque al menos un jugador", true);
+        return;
+      }
+      const resultado = await ejecutar(() => api("PUT", `/planillas/${selPartido.value}`, { jugadores }));
+      if (resultado) recargar();
+    });
+
+    document.getElementById("form-gol").addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const f = evento.target;
+      const cuerpo = { ci_jugador: f.ci_jugador.value, minuto: Number(f.minuto.value), autogol: f.autogol.checked };
+      if (await ejecutar(() => api("POST", `/planillas/${selPartido.value}/goles`, cuerpo))) {
+        f.reset();
+        recargar();
+      }
+    });
+
+    document.getElementById("form-tarjeta").addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const f = evento.target;
+      const cuerpo = { ci_jugador: f.ci_jugador.value, minuto: Number(f.minuto.value), color: f.color.value };
+      if (await ejecutar(() => api("POST", `/planillas/${selPartido.value}/tarjetas`, cuerpo))) {
+        f.reset();
+        recargar();
+      }
+    });
+
+    ejecutar(async () => {
+      const sesion = await api("GET", "/sesion");
+      if (sesion.rol === "administrador") {
+        document.getElementById("nav").innerHTML = `
+          <a href="/admin/partidos">Partidos</a>
+          <a href="/planillero" aria-current="page">Planillas</a>
+          <a href="/admin/sanciones">Sanciones</a>
+          <a href="/admin/consultas">Consultas</a>`;
+      }
+      await cargarPartidos();
+    });
+  </script>
+</body>
+</html>

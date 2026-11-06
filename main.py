@@ -1,10 +1,25 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from datetime import date
 import mysql.connector
 from typing import List
 
+import partidos
+import planillas
+import sanciones
+import consultas
+import paginas
+from comun import conectar_bd, guardar_sesion, borrar_sesion
+
 app = FastAPI(title="Torneo Interfacultades UCU - Backend")
+
+app.include_router(partidos.router)
+app.include_router(planillas.router)
+app.include_router(sanciones.router)
+app.include_router(consultas.router)
+app.include_router(paginas.router)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class LoginDatos(BaseModel):
     correo: str
@@ -28,27 +43,8 @@ class TorneoNuevo(BaseModel):
     fecha_fin: date
     estado: str
 
-def conectar_bd(rol: str):
-    if rol == "administrador":
-        usuario = "app_admin"
-        clave = "admin123"
-    elif rol == "planillero":
-        usuario = "app_planillero"
-        clave = "plani123"
-    else:
-        usuario = "lol"
-        clave = "lol"
-
-    conexion = mysql.connector.connect(
-        host="db",
-        user=usuario,
-        password=clave,
-        database="torneo_ucu"
-    )
-    return conexion
-
 @app.post("/login")
-def iniciar_sesion(datos: LoginDatos):
+def iniciar_sesion(datos: LoginDatos, response: Response):
     try:
         conexion = conectar_bd("administrador")
         cursor = conexion.cursor(dictionary=True)
@@ -61,12 +57,18 @@ def iniciar_sesion(datos: LoginDatos):
         conexion.close()
 
         if usuario_encontrado:
+            guardar_sesion(response, datos.correo, usuario_encontrado['rol'])
             return {"mensaje": "Login exitoso", "rol": usuario_encontrado['rol']}
         else:
             return {"error": "Correo o contraseña incorrectos"}
-            
+
     except mysql.connector.Error as err:
         return {"error": f"Error conectando a la base: {err}"}
+
+@app.post("/logout")
+def cerrar_sesion(response: Response):
+    borrar_sesion(response)
+    return {"mensaje": "Sesión cerrada"}
 
 
 @app.post("/jugadores")

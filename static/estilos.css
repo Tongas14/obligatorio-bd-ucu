@@ -1,0 +1,182 @@
+:root {
+  --azul: #12355b;
+  --azul-claro: #1d4f86;
+  --fondo: #f3f5f8;
+  --superficie: #ffffff;
+  --borde: #dde3ea;
+  --texto: #1f2933;
+  --texto-suave: #5f6b7a;
+  --verde: #1e7a3f;
+  --verde-fondo: #e4f4e9;
+  --rojo: #b3261e;
+  --rojo-fondo: #fbe9e7;
+  --amarillo: #8a6100;
+  --amarillo-fondo: #fff4d1;
+  --radio: 4px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+/* Barra superior */
+header { background: var(--azul); color: #fff; }
+header .barra {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+header .marca { font-weight: 700; letter-spacing: .2px; margin-right: auto; }
+header nav { display: flex; flex-wrap: wrap; gap: 4px; }
+header nav a {
+  color: rgba(255, 255, 255, .8);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: var(--radio);
+}
+header nav a:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+header nav a[aria-current="page"] { color: #fff; background: rgba(255, 255, 255, .18); }
+header .salir {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .4);
+  color: #fff;
+  padding: 5px 12px;
+}
+header .salir:hover { background: rgba(255, 255, 255, .1); }
+
+/* Contenido */
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+.subtitulo { color: var(--texto-suave); margin: 0 0 20px; }
+h2 { font-size: 1.05rem; margin: 0 0 14px; }
+h3 { font-size: .95rem; margin: 0 0 10px; }
+
+section.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+/* Formularios */
+form.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+label { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--texto-suave); }
+label.opcion { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; color: var(--texto); }
+input, select {
+  font: inherit;
+  color: var(--texto);
+  background: #fff;
+  padding: 8px 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  min-width: 0;
+}
+input:focus, select:focus { outline: 2px solid var(--azul-claro); outline-offset: -1px; border-color: var(--azul-claro); }
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--azul); }
+form.grilla label.opcion { padding-bottom: 9px; }
+.grilla > button { justify-self: start; }
+.grilla + .tabla-scroll { margin-top: 16px; }
+.filtro { max-width: 340px; margin-bottom: 14px; }
+.tarjeta > .filtro:last-child { margin-bottom: 0; }
+
+/* Botones */
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radio);
+  background: var(--azul);
+  color: #fff;
+  cursor: pointer;
+}
+button:hover { background: var(--azul-claro); }
+button.secundario { background: #e8edf3; color: var(--texto); }
+button.secundario:hover { background: #dbe2ea; }
+button.peligro { background: transparent; color: var(--rojo); border: 1px solid #efc7c3; }
+button.peligro:hover { background: var(--rojo-fondo); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+td button { padding: 4px 10px; font-size: .85rem; }
+.acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Tablas */
+.tabla-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th {
+  text-align: left;
+  background: #eef1f5;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--borde);
+  white-space: nowrap;
+}
+td { padding: 9px 10px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+tbody tr:hover { background: #f8fafc; }
+td.vacio { color: var(--texto-suave); text-align: center; padding: 18px; }
+.resultado { font-weight: 700; white-space: nowrap; }
+
+/* Mensajes */
+.mensaje { padding: 10px 14px; border-radius: var(--radio); margin-bottom: 16px; display: none; font-weight: 500; }
+.mensaje.ok { display: block; background: var(--verde-fondo); color: var(--verde); }
+.mensaje.error { display: block; background: var(--rojo-fondo); color: var(--rojo); }
+
+/* Etiquetas de estado */
+.estado, .etiqueta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: .78rem;
+  font-weight: 600;
+  background: #e8edf3;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+.estado.jugado { background: var(--verde-fondo); color: var(--verde); }
+.estado.cancelado, .etiqueta.roja { background: var(--rojo-fondo); color: var(--rojo); }
+.estado.postergado, .etiqueta.amarilla { background: var(--amarillo-fondo); color: var(--amarillo); }
+.suspendido { color: var(--rojo); font-size: .8rem; font-weight: 600; }
+.automatica { color: var(--texto-suave); font-size: .85rem; }
+
+/* Planilla */
+.marcador {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+.marcador .equipo { font-size: 1.15rem; font-weight: 700; }
+.marcador .goles { font-size: 2rem; font-weight: 800; color: var(--azul); white-space: nowrap; }
+.info-partido { text-align: center; color: var(--texto-suave); margin: 10px 0 0; font-size: .9rem; }
+.equipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.equipos > div { border: 1px solid var(--borde); border-radius: var(--radio); padding: 14px; }
+.equipos label.opcion { padding: 4px 0; }
+.camiseta { display: inline-block; min-width: 24px; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.pie { margin: 16px 0 0; }
+
+/* Login */
+.login { max-width: 400px; margin: 48px auto; }
+.login form.grilla { grid-template-columns: 1fr; }
+.login form.grilla > button { justify-self: stretch; }
+
+@media (max-width: 600px) {
+  main { padding-top: 16px; }
+  section.tarjeta { padding: 16px; }
+  .marcador .goles { font-size: 1.6rem; }
+}

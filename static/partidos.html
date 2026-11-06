@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Partidos - Torneo UCU</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header>
+    <div class="barra">
+      <span class="marca">Torneo Interfacultades UCU</span>
+      <nav>
+        <a href="/admin/partidos" aria-current="page">Partidos</a>
+        <a href="/planillero">Planillas</a>
+        <a href="/admin/sanciones">Sanciones</a>
+        <a href="/admin/consultas">Consultas</a>
+      </nav>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <main>
+    <h1>Partidos</h1>
+    <p class="subtitulo">Programación de partidos de cada edición del torneo.</p>
+    <div id="mensaje" class="mensaje"></div>
+
+    <section class="tarjeta">
+      <h2 id="titulo-form">Nuevo partido</h2>
+      <form id="form-partido" class="grilla">
+        <label>Torneo <select name="id_torneo" id="sel-torneo" required></select></label>
+        <label>Fecha N.º <input type="number" name="numero_fecha" min="1" max="50" step="1" required></label>
+        <label>Local <select name="id_equipo_local" id="sel-local" required></select></label>
+        <label>Visitante <select name="id_equipo_visitante" id="sel-visitante" required></select></label>
+        <label>Día <input type="date" name="dia" required></label>
+        <label>Turno <select name="id_turno" id="sel-turno" required></select></label>
+        <label>Cancha <select name="cancha" id="sel-cancha" required></select></label>
+        <label>Estado <select name="estado" id="sel-estado" required></select></label>
+        <div class="acciones">
+          <button type="submit" id="btn-guardar">Dar de alta</button>
+          <button type="button" class="secundario" id="btn-cancelar" onclick="limpiarFormulario()" hidden>Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Partidos programados</h2>
+      <label class="filtro">Ver torneo <select id="filtro-torneo"></select></label>
+      <div class="tabla-scroll">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Fecha</th><th>Partido</th><th>Resultado</th><th>Día y turno</th><th>Cancha</th><th>Estado</th><th></th></tr>
+          </thead>
+          <tbody id="tabla-partidos"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/comun.js"></script>
+  <script>
+    let opciones = null;
+    let partidos = [];
+    let idEditando = null;
+    const form = document.getElementById("form-partido");
+
+    function cargarEquipos(idTorneo, local, visitante) {
+      const equipos = opciones.equipos.filter(e => e.id_torneo == idTorneo);
+      const html = opcion("", "Elegir...") + equipos.map(e =>
+        opcion(e.id_equipo, `${e.nombre} (${e.cantidad_jugadores} jug.)`)).join("");
+      document.getElementById("sel-local").innerHTML = html;
+      document.getElementById("sel-visitante").innerHTML = html;
+      if (local) document.getElementById("sel-local").value = local;
+      if (visitante) document.getElementById("sel-visitante").value = visitante;
+    }
+
+    async function cargarOpciones() {
+      opciones = await api("GET", "/partidos/opciones");
+      const torneos = opciones.torneos.map(t => opcion(t.id_torneo, `${t.nombre} ${t.anio}-${t.semestre} (${t.estado})`)).join("");
+      document.getElementById("sel-torneo").innerHTML = torneos;
+      document.getElementById("filtro-torneo").innerHTML = opcion("", "Todos") + torneos;
+      document.getElementById("sel-turno").innerHTML = opciones.turnos.map(t =>
+        opcion(t.id_turno, `${t.hora_inicio} - ${t.hora_fin}`)).join("");
+      document.getElementById("sel-cancha").innerHTML = opciones.canchas.map(c =>
+        opcion(`${c.id_complejo}|${c.nombre_cancha}`, `${c.complejo} - ${c.nombre_cancha}`)).join("");
+      document.getElementById("sel-estado").innerHTML = opciones.estados.map(e => opcion(e, e)).join("");
+      cargarEquipos(document.getElementById("sel-torneo").value);
+    }
+
+    async function cargarPartidos() {
+      const filtro = document.getElementById("filtro-torneo").value;
+      partidos = await api("GET", "/partidos" + (filtro ? `?id_torneo=${filtro}` : ""));
+      document.getElementById("tabla-partidos").innerHTML = partidos.map(p => `
+        <tr>
+          <td>${p.id_partido}</td>
+          <td>${p.numero_fecha}</td>
+          <td>${escapar(p.equipo_local)} vs ${escapar(p.equipo_visitante)}</td>
+          <td class="resultado">${p.estado === "jugado" ? `${p.goles_local} - ${p.goles_visitante}` : "-"}</td>
+          <td>${p.dia} ${p.hora_inicio}</td>
+          <td>${escapar(p.complejo)} - ${escapar(p.nombre_cancha)}</td>
+          <td><span class="estado ${p.estado}">${p.estado}</span></td>
+          <td><div class="acciones">
+            <button class="secundario" onclick="editar(${p.id_partido})">Editar</button>
+            <button class="peligro" onclick="eliminar(${p.id_partido})" ${p.estado === "jugado" ? "disabled title='Un partido jugado no se puede eliminar'" : ""}>Eliminar</button>
+          </div></td>
+        </tr>`).join("") || `<tr><td colspan="8" class="vacio">No hay partidos</td></tr>`;
+    }
+
+    function limpiarFormulario() {
+      idEditando = null;
+      form.reset();
+      document.getElementById("titulo-form").textContent = "Nuevo partido";
+      document.getElementById("btn-guardar").textContent = "Dar de alta";
+      document.getElementById("btn-cancelar").hidden = true;
+      cargarEquipos(document.getElementById("sel-torneo").value);
+    }
+
+    function editar(id) {
+      const p = partidos.find(x => x.id_partido === id);
+      idEditando = id;
+      form.id_torneo.value = p.id_torneo;
+      cargarEquipos(p.id_torneo, p.id_equipo_local, p.id_equipo_visitante);
+      form.numero_fecha.value = p.numero_fecha;
+      form.dia.value = p.dia;
+      form.id_turno.value = p.id_turno;
+      form.cancha.value = `${p.id_complejo}|${p.nombre_cancha}`;
+      form.estado.value = p.estado;
+      document.getElementById("titulo-form").textContent = `Modificar partido ${id}`;
+      document.getElementById("btn-guardar").textContent = "Guardar cambios";
+      document.getElementById("btn-cancelar").hidden = false;
+      form.scrollIntoView();
+    }
+
+    async function eliminar(id) {
+      if (!confirm(`¿Eliminar el partido ${id}?`)) return;
+      if (await ejecutar(() => api("DELETE", `/partidos/${id}`))) cargarPartidos();
+    }
+
+    document.getElementById("sel-torneo").addEventListener("change", e => cargarEquipos(e.target.value));
+    document.getElementById("filtro-torneo").addEventListener("change", cargarPartidos);
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const d = Object.fromEntries(new FormData(form));
+      if (d.id_equipo_local === d.id_equipo_visitante) {
+        mostrarMensaje("Un equipo no puede enfrentarse a sí mismo", true);
+        return;
+      }
+      const [idComplejo, nombreCancha] = d.cancha.split("|");
+      const cuerpo = {
+        id_torneo: Number(d.id_torneo), numero_fecha: Number(d.numero_fecha),
+        id_equipo_local: Number(d.id_equipo_local), id_equipo_visitante: Number(d.id_equipo_visitante),
+        dia: d.dia, id_turno: Number(d.id_turno), nombre_cancha: nombreCancha,
+        id_complejo: Number(idComplejo), estado: d.estado,
+      };
+      const resultado = await ejecutar(() => idEditando
+        ? api("PUT", `/partidos/${idEditando}`, cuerpo)
+        : api("POST", "/partidos", cuerpo));
+      if (resultado) {
+        limpiarFormulario();
+        cargarPartidos();
+      }
+    });
+
+    ejecutar(async () => { await cargarOpciones(); await cargarPartidos(); });
+  </script>
+</body>
+</html>
