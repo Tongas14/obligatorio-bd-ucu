@@ -16,11 +16,96 @@
   </header>
   <main>
     <h1>Consultas</h1>
-    <p class="subtitulo">Consultas sobre partidos, planillas y sanciones de cada edición.</p>
+    <p class="subtitulo">Reportes de la edición seleccionada para el área de deportes.</p>
     <div id="mensaje" class="mensaje"></div>
 
     <section class="tarjeta">
       <label class="filtro">Torneo <select id="sel-torneo"></select></label>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Tabla de posiciones</h2>
+      <p class="subtitulo">3 puntos por partido ganado, 1 por empate. Se ordena por puntos, diferencia de goles y goles a favor.</p>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>#</th><th>Equipo</th><th>Facultad</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th>
+          <th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
+          <tbody id="tabla-posiciones"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Goleadores</h2>
+      <p class="subtitulo">Los 10 jugadores con más goles. Los autogoles no se cuentan.</p>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>#</th><th>Jugador</th><th>Equipo</th><th>Goles</th></tr></thead>
+          <tbody id="tabla-goleadores"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Fair play</h2>
+      <p class="subtitulo">1 punto por amarilla y 3 por roja. El mejor equipo es el de menor puntaje.</p>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>#</th><th>Equipo</th><th>Amarillas</th><th>Rojas</th><th>Puntos</th></tr></thead>
+          <tbody id="tabla-fairplay"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Promedio de goles por partido</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Fecha</th><th>Partidos</th><th>Goles</th><th>Promedio</th></tr></thead>
+          <tbody id="tabla-promedio"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Canchas más utilizadas</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Cancha</th><th>Complejo</th><th>Partidos</th></tr></thead>
+          <tbody id="tabla-canchas"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Turnos más utilizados</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Turno</th><th>Partidos</th></tr></thead>
+          <tbody id="tabla-turnos"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Jugadores por facultad y tipo</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Facultad</th><th>Tipo</th><th>Cantidad</th></tr></thead>
+          <tbody id="tabla-facultades"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Inscriptos que nunca figuraron en una planilla</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>CI</th><th>Jugador</th><th>Tipo</th><th>Equipo</th><th>Facultad</th></tr></thead>
+          <tbody id="tabla-sinplanilla"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Sanciones por equipo y motivo</h2>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Equipo</th><th>Motivo</th><th>Sanciones</th><th>Fechas de suspensión</th></tr></thead>
+          <tbody id="tabla-sanciones"></tbody></table>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Partidos por estado</h2>
+      <p class="subtitulo">Porcentaje de partidos jugados frente a postergados y cancelados.</p>
+      <div class="tabla-scroll">
+        <table><thead><tr><th>Estado</th><th>Cantidad</th><th>Porcentaje</th></tr></thead>
+          <tbody id="tabla-estados"></tbody></table>
+      </div>
     </section>
 
     <section class="tarjeta">
@@ -57,40 +142,151 @@
     const selTorneo = document.getElementById("sel-torneo");
     const formSuspendidos = document.getElementById("form-suspendidos");
 
+    // Pinta las filas de una tabla, o un mensaje si la consulta no devolvió nada
+    function pintar(id, filas, columnas, armarFila, textoVacio) {
+      document.getElementById(id).innerHTML = filas.length
+        ? filas.map(armarFila).join("")
+        : `<tr><td colspan="${columnas}" class="vacio">${textoVacio}</td></tr>`;
+    }
+
+    async function cargarPosiciones() {
+      const filas = await api("GET", `/consultas/posiciones?id_torneo=${selTorneo.value}`);
+      pintar("tabla-posiciones", filas, 11, (f, i) => `
+        <tr><td>${i + 1}</td><td>${escapar(f.equipo)}</td><td>${escapar(f.facultad)}</td>
+          <td>${f.pj}</td><td>${f.pg}</td><td>${f.pe}</td><td>${f.pp}</td>
+          <td>${f.gf}</td><td>${f.gc}</td><td>${f.dg}</td><td><strong>${f.puntos}</strong></td></tr>`,
+        "No hay equipos en esta edición");
+    }
+
+    async function cargarGoleadores() {
+      const filas = await api("GET", `/consultas/goleadores?id_torneo=${selTorneo.value}`);
+      pintar("tabla-goleadores", filas, 4, (f, i) => `
+        <tr><td>${i + 1}</td><td>${escapar(f.apellido)}, ${escapar(f.nombre)}</td>
+          <td>${escapar(f.equipo)}</td><td>${f.goles}</td></tr>`,
+        "Todavía no se registraron goles");
+    }
+
+    async function cargarFairPlay() {
+      const filas = await api("GET", `/consultas/fair-play?id_torneo=${selTorneo.value}`);
+      pintar("tabla-fairplay", filas, 5, (f, i) => `
+        <tr><td>${i + 1}</td><td>${escapar(f.equipo)}</td>
+          <td><span class="etiqueta amarilla">${f.amarillas}</span></td>
+          <td><span class="etiqueta roja">${f.rojas}</span></td><td><strong>${f.puntos}</strong></td></tr>`,
+        "No hay equipos en esta edición");
+    }
+
+    async function cargarPromedio() {
+      const filas = await api("GET", `/consultas/promedio-goles?id_torneo=${selTorneo.value}`);
+      // La fila con numero_fecha nulo es el total de la edición (viene del ROLLUP)
+      pintar("tabla-promedio", filas, 4, f => {
+        const total = f.numero_fecha === null;
+        const etiqueta = total ? "<strong>Toda la edición</strong>" : `Fecha ${f.numero_fecha}`;
+        return `<tr><td>${etiqueta}</td><td>${f.partidos}</td><td>${f.goles}</td>
+          <td>${total ? `<strong>${f.promedio}</strong>` : f.promedio}</td></tr>`;
+      }, "Todavía no hay partidos jugados");
+    }
+
+    async function cargarCanchas() {
+      const filas = await api("GET", `/consultas/canchas-usadas?id_torneo=${selTorneo.value}`);
+      pintar("tabla-canchas", filas, 3, f => `
+        <tr><td>${escapar(f.nombre_cancha)}</td><td>${escapar(f.complejo)}</td><td>${f.partidos}</td></tr>`,
+        "Todavía no hay partidos jugados");
+    }
+
+    async function cargarTurnos() {
+      const filas = await api("GET", `/consultas/turnos-usados?id_torneo=${selTorneo.value}`);
+      pintar("tabla-turnos", filas, 2, f => `
+        <tr><td>${f.hora_inicio} a ${f.hora_fin}</td><td>${f.partidos}</td></tr>`,
+        "Todavía no hay partidos jugados");
+    }
+
+    async function cargarFacultades() {
+      const filas = await api("GET", "/consultas/jugadores-por-facultad");
+      // ROLLUP: tipo nulo es el subtotal de la facultad y facultad nula el total general
+      pintar("tabla-facultades", filas, 3, f => {
+        if (f.facultad === null) return `<tr><td><strong>Total</strong></td><td></td><td><strong>${f.cantidad}</strong></td></tr>`;
+        if (f.tipo === null) return `<tr><td><strong>${escapar(f.facultad)}</strong></td>
+          <td><em>subtotal</em></td><td><strong>${f.cantidad}</strong></td></tr>`;
+        return `<tr><td>${escapar(f.facultad)}</td><td>${escapar(f.tipo)}</td><td>${f.cantidad}</td></tr>`;
+      }, "No hay jugadores registrados");
+    }
+
+    async function cargarSinPlanilla() {
+      const filas = await api("GET", `/consultas/sin-planilla?id_torneo=${selTorneo.value}`);
+      pintar("tabla-sinplanilla", filas, 5, f => `
+        <tr><td>${escapar(f.ci)}</td><td>${escapar(f.apellido)}, ${escapar(f.nombre)}</td>
+          <td>${escapar(f.tipo)}</td><td>${escapar(f.equipo)}</td><td>${escapar(f.facultad)}</td></tr>`,
+        "Todos los inscriptos jugaron al menos un partido");
+    }
+
+    async function cargarSanciones() {
+      const filas = await api("GET", `/consultas/sanciones-por-equipo?id_torneo=${selTorneo.value}`);
+      pintar("tabla-sanciones", filas, 4, f => `
+        <tr><td>${escapar(f.equipo)}</td>
+          <td><span class="etiqueta${f.motivo === "roja" ? " roja" : f.motivo === "disciplinaria" ? "" : " amarilla"}">${escapar(f.motivo)}</span></td>
+          <td>${f.cantidad}</td><td>${f.fechas_de_suspension}</td></tr>`,
+        "No hay sanciones en esta edición");
+    }
+
+    async function cargarEstados() {
+      const filas = await api("GET", `/consultas/porcentaje-partidos?id_torneo=${selTorneo.value}`);
+      pintar("tabla-estados", filas, 3, f => `
+        <tr><td><span class="estado ${escapar(f.estado)}">${escapar(f.estado)}</span></td>
+          <td>${f.cantidad}</td><td>${f.porcentaje} %</td></tr>`,
+        "No hay partidos en esta edición");
+    }
+
     async function cargarSuspendidos() {
       const fecha = formSuspendidos.numero_fecha.value;
       if (!fecha) return;
       const filas = await api("GET", `/consultas/suspendidos?id_torneo=${selTorneo.value}&numero_fecha=${fecha}`);
-      document.getElementById("tabla-suspendidos").innerHTML = filas.map(f => `
+      pintar("tabla-suspendidos", filas, 4, f => `
         <tr><td>${escapar(f.apellido)}, ${escapar(f.nombre)}</td><td>${escapar(f.equipo || "-")}</td>
-          <td><span class="etiqueta${f.motivo === "roja" ? " roja" : f.motivo === "disciplinaria" ? "" : " amarilla"}">${escapar(f.motivo)}</span></td><td>${f.numero_fecha_inicio} a ${f.numero_fecha_fin}</td></tr>`
-      ).join("") || `<tr><td colspan="4" class="vacio">Nadie está suspendido en esa fecha</td></tr>`;
+          <td><span class="etiqueta${f.motivo === "roja" ? " roja" : f.motivo === "disciplinaria" ? "" : " amarilla"}">${escapar(f.motivo)}</span></td>
+          <td>${f.numero_fecha_inicio} a ${f.numero_fecha_fin}</td></tr>`,
+        "Nadie está suspendido en esa fecha");
     }
 
     async function cargarTarjetas() {
       const filas = await api("GET", `/consultas/partidos-mas-tarjetas?id_torneo=${selTorneo.value}`);
-      document.getElementById("tabla-tarjetas").innerHTML = filas.map(f => `
+      pintar("tabla-tarjetas", filas, 6, f => `
         <tr><td>${f.numero_fecha}</td><td>${escapar(f.equipo_local)} vs ${escapar(f.equipo_visitante)}</td>
-          <td>${f.dia}</td><td>${f.amarillas}</td><td>${f.rojas}</td><td>${f.total_tarjetas}</td></tr>`
-      ).join("") || `<tr><td colspan="6" class="vacio">Sin tarjetas en esta edición</td></tr>`;
+          <td>${f.dia}</td><td>${f.amarillas}</td><td>${f.rojas}</td><td>${f.total_tarjetas}</td></tr>`,
+        "Sin tarjetas en esta edición");
     }
 
     async function cargarPendientes() {
       const filas = await api("GET", "/consultas/planillas-pendientes");
-      document.getElementById("tabla-pendientes").innerHTML = filas.map(f => `
+      pintar("tabla-pendientes", filas, 5, f => `
         <tr><td>${escapar(f.torneo)}</td><td>${f.numero_fecha}</td>
           <td>${escapar(f.equipo_local)} vs ${escapar(f.equipo_visitante)}</td>
-          <td>${f.dia} ${f.hora_inicio}</td><td>${f.estado}</td></tr>`
-      ).join("") || `<tr><td colspan="5" class="vacio">No hay planillas pendientes</td></tr>`;
+          <td>${f.dia} ${f.hora_inicio}</td><td>${f.estado}</td></tr>`,
+        "No hay planillas pendientes");
     }
 
-    selTorneo.addEventListener("change", () => ejecutar(async () => { await cargarTarjetas(); await cargarSuspendidos(); }));
+    // Todo lo que depende del torneo elegido
+    async function cargarTodo() {
+      await cargarPosiciones();
+      await cargarGoleadores();
+      await cargarFairPlay();
+      await cargarPromedio();
+      await cargarCanchas();
+      await cargarTurnos();
+      await cargarSinPlanilla();
+      await cargarSanciones();
+      await cargarEstados();
+      await cargarTarjetas();
+      await cargarSuspendidos();
+    }
+
+    selTorneo.addEventListener("change", () => ejecutar(cargarTodo));
     formSuspendidos.addEventListener("submit", (evento) => { evento.preventDefault(); ejecutar(cargarSuspendidos); });
 
     ejecutar(async () => {
       const opciones = await api("GET", "/partidos/opciones");
       selTorneo.innerHTML = opciones.torneos.map(t => opcion(t.id_torneo, `${t.nombre} ${t.anio}-${t.semestre}`)).join("");
-      await cargarTarjetas();
+      await cargarTodo();
+      await cargarFacultades();
       await cargarPendientes();
     });
   </script>

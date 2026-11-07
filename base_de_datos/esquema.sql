@@ -157,72 +157,166 @@ CREATE TABLE sancion_jugador (
 
 
 
--- Las contraseñas se guardan como hash SHA-256, nunca en texto plano
+-- Las contraseñas se guardan como hash SHA-256, no en texto plano
 INSERT INTO login VALUES
-('admin@ucu.edu.uy', SHA2('admin2026', 256), 'administrador'),
-('planillero@ucu.edu.uy', SHA2('planillero2026', 256), 'planillero');
+    ('admin@ucu.edu.uy', SHA2('admin2026', 256), 'administrador'),
+    ('planillero@ucu.edu.uy', SHA2('planillero2026', 256), 'planillero');
 
 INSERT INTO facultad VALUES
-(1, 'Ingenieria'), (2, 'Medicina'), (3, 'Derecho');
+    (1, 'Ingenieria'), (2, 'Ciencias Empresariales'), (3, 'Derecho');
 
-INSERT INTO jugador VALUES 
-('111', 'Juan', 'Perez', 'j@ucu.edu.uy', '2001-01-01', 1, 'grado'),
-('222', 'Matias', 'Gomez', 'm@ucu.edu.uy', '2001-01-01', 2, 'grado'),
-('333', 'Lucas', 'Silva', 'l@ucu.edu.uy', '2001-01-01', 3, 'posgrado'),
-('444', 'Diego', 'Lopez', 'd@ucu.edu.uy', '2001-01-01', 1, 'grado'),
-('555', 'Martin', 'Rios', 'ma@ucu.edu.uy', '1985-01-01', 2, 'docente'),
-('666', 'Pablo', 'Sosa', 'p@ucu.edu.uy', '1990-01-01', 3, 'funcionario'),
-('777', 'Gaston', 'Guzman', 'g@ucu.edu.uy', '2001-01-01', 1, 'grado'),
-('888', 'Ariel', 'Brava', 'a@ucu.edu.uy', '2001-01-01', 1, 'grado');
+INSERT INTO jugador VALUES
+    ('401001', 'Emiliano', 'Guzman', 'eguzman0@ucu.edu.uy', '1998-04-24', 1, 'grado'),
+    ('401002', 'Matias', 'Perez', 'mperez1@ucu.edu.uy', '2006-02-13', 1, 'grado'),
+    ('401003', 'Emiliano', 'Gomez', 'egomez2@ucu.edu.uy', '2003-05-23', 1, 'grado'),
+    ('401004', 'Facundo', 'Perez', 'fperez3@ucu.edu.uy', '2006-08-19', 1, 'grado'),
+    ('401005', 'Federico', 'Guzman', 'fguzman4@ucu.edu.uy', '2002-07-06', 1, 'grado'),
+    ('401006', 'Facundo', 'Methol', 'fmethol5@ucu.edu.uy', '2002-12-25', 1, 'posgrado'),
+    ('401007', 'Juan', 'Techera', 'jtechera6@ucu.edu.uy', '1982-06-23', 1, 'docente'),
+    ('402001', 'Emiliano', 'Techera', 'etechera7@ucu.edu.uy', '2003-07-11', 2, 'grado'),
+    ('402002', 'Santiago', 'Rios', 'srios8@ucu.edu.uy', '2002-01-28', 2, 'grado'),
+    ('402003', 'Santiago', 'Ferreira', 'sferreira9@ucu.edu.uy', '2005-04-23', 2, 'grado'),
+    ('402004', 'Facundo', 'Guzman', 'fguzman10@ucu.edu.uy', '1998-12-21', 2, 'grado'),
+    ('402005', 'Ariel', 'Guzman', 'aguzman11@ucu.edu.uy', '2002-12-01', 2, 'posgrado'),
+    ('402006', 'Ignacio', 'Ferreira', 'iferreira12@ucu.edu.uy', '1998-04-11', 2, 'posgrado'),
+    ('402007', 'Martin', 'Ferreira', 'mferreira13@ucu.edu.uy', '1987-01-07', 2, 'funcionario'),
+    ('403001', 'Mauricio', 'Lopez', 'mlopez14@ucu.edu.uy', '2003-07-16', 3, 'grado'),
+    ('403002', 'Pablo', 'Pereyra', 'ppereyra15@ucu.edu.uy', '2006-12-20', 3, 'grado'),
+    ('403003', 'Bruno', 'Fernandez', 'bfernandez16@ucu.edu.uy', '2005-03-07', 3, 'grado'),
+    ('403004', 'Emiliano', 'Cabrera', 'ecabrera17@ucu.edu.uy', '2003-05-27', 3, 'grado'),
+    ('403005', 'Joaquin', 'Gomez', 'jgomez18@ucu.edu.uy', '2003-09-27', 3, 'posgrado'),
+    ('403006', 'Matias', 'Olivera', 'molivera19@ucu.edu.uy', '1989-03-16', 3, 'docente'),
+    ('403007', 'Gaston', 'Castro', 'gcastro20@ucu.edu.uy', '1984-03-17', 3, 'funcionario'),
+    ('404001', 'Nicolas', 'Rodriguez', 'nrodriguez21@ucu.edu.uy', '2003-11-20', 1, 'grado'),
+    ('404002', 'Agustin', 'Ferreira', 'aferreira22@ucu.edu.uy', '2005-10-23', 1, 'grado'),
+    ('404003', 'Sebastian', 'Pereyra', 'spereyra23@ucu.edu.uy', '2004-12-09', 1, 'grado'),
+    ('404004', 'Diego', 'Rodriguez', 'drodriguez24@ucu.edu.uy', '2006-02-19', 1, 'grado'),
+    ('404005', 'Santiago', 'Cabrera', 'scabrera25@ucu.edu.uy', '2006-03-18', 1, 'grado'),
+    ('404006', 'Facundo', 'Bravo', 'fbravo26@ucu.edu.uy', '2003-08-01', 1, 'grado'),
+    ('404007', 'Diego', 'Sosa', 'dsosa27@ucu.edu.uy', '2000-02-23', 1, 'posgrado'),
+    ('405001', 'Juan', 'Cabrera', 'jcabrera28@ucu.edu.uy', '2005-11-13', 2, 'grado'),
+    ('405002', 'Emiliano', 'Perez', 'eperez29@ucu.edu.uy', '2001-03-07', 2, 'grado'),
+    ('405003', 'Joaquin', 'Silva', 'jsilva30@ucu.edu.uy', '2003-04-07', 2, 'grado'),
+    ('405004', 'Federico', 'Castro', 'fcastro31@ucu.edu.uy', '2001-05-02', 2, 'grado'),
+    ('405005', 'Diego', 'Castro', 'dcastro32@ucu.edu.uy', '2001-08-07', 2, 'posgrado'),
+    ('405006', 'Ariel', 'Rodriguez', 'arodriguez33@ucu.edu.uy', '1983-11-06', 2, 'docente'),
+    ('405007', 'Emiliano', 'Varela', 'evarela34@ucu.edu.uy', '1983-11-09', 2, 'funcionario'),
+    ('406001', 'Nicolas', 'Pereyra', 'npereyra35@ucu.edu.uy', '2005-01-10', 3, 'grado'),
+    ('406002', 'Pablo', 'Varela', 'pvarela36@ucu.edu.uy', '2006-08-02', 3, 'grado'),
+    ('406003', 'Alexis', 'Rodriguez', 'arodriguez37@ucu.edu.uy', '1999-04-19', 3, 'grado'),
+    ('406004', 'Diego', 'Rios', 'drios38@ucu.edu.uy', '1999-02-13', 3, 'grado'),
+    ('406005', 'Juan', 'Silva', 'jsilva39@ucu.edu.uy', '2000-01-05', 3, 'grado'),
+    ('406006', 'Emiliano', 'Lopez', 'elopez40@ucu.edu.uy', '2001-05-15', 3, 'posgrado'),
+    ('406007', 'Juan', 'Ferreira', 'jferreira41@ucu.edu.uy', '1990-04-06', 3, 'docente');
 
-INSERT INTO torneo VALUES 
-(1, 'Interfacultades', 2026, 2, '2026-08-15', '2026-11-20', 'en curso');
+INSERT INTO torneo VALUES
+    (1, 'Interfacultades', 2026, 2, '2026-08-15', '2026-11-20', 'en curso');
 
-INSERT INTO equipo VALUES 
-(1, 'Sistemas', 1, 1, '111'), (2, 'Economia', 1, 2, '222'),
-(3, 'Leyes', 1, 3, '333'), (4, 'Mecanica', 1, 1, '444'),
-(5, 'Contadores', 1, 2, '555'), (6, 'Notarios', 1, 3, '666');
+-- El capitán es el primer jugador del plantel de cada equipo
+INSERT INTO equipo VALUES
+    (1, 'Sistemas', 1, 1, '401001'), (2, 'Economia', 1, 2, '402001'),
+    (3, 'Leyes', 1, 3, '403001'), (4, 'Mecanica', 1, 1, '404001'),
+    (5, 'Contadores', 1, 2, '405001'), (6, 'Notarios', 1, 3, '406001');
 
-INSERT INTO equipo_jugador_torneo VALUES 
-(1, '111', 1, 10), (2, '222', 1, 10), (3, '333', 1, 10),
-(4, '444', 1, 10), (5, '555', 1, 10), (6, '666', 1, 10),
-(1, '777', 1, 5), (1, '888', 1, 2);
+-- 7 jugadores por equipo
+INSERT INTO equipo_jugador_torneo VALUES
+    (1, '401001', 1, 1), (1, '401002', 1, 2), (1, '401003', 1, 3), (1, '401004', 1, 4),
+    (1, '401005', 1, 5), (1, '401006', 1, 6), (1, '401007', 1, 7), (2, '402001', 1, 1),
+    (2, '402002', 1, 2), (2, '402003', 1, 3), (2, '402004', 1, 4), (2, '402005', 1, 5),
+    (2, '402006', 1, 6), (2, '402007', 1, 7), (3, '403001', 1, 1), (3, '403002', 1, 2),
+    (3, '403003', 1, 3), (3, '403004', 1, 4), (3, '403005', 1, 5), (3, '403006', 1, 6),
+    (3, '403007', 1, 7), (4, '404001', 1, 1), (4, '404002', 1, 2), (4, '404003', 1, 3),
+    (4, '404004', 1, 4), (4, '404005', 1, 5), (4, '404006', 1, 6), (4, '404007', 1, 7),
+    (5, '405001', 1, 1), (5, '405002', 1, 2), (5, '405003', 1, 3), (5, '405004', 1, 4),
+    (5, '405005', 1, 5), (5, '405006', 1, 6), (5, '405007', 1, 7), (6, '406001', 1, 1),
+    (6, '406002', 1, 2), (6, '406003', 1, 3), (6, '406004', 1, 4), (6, '406005', 1, 5),
+    (6, '406006', 1, 6), (6, '406007', 1, 7);
 
-INSERT INTO complejo VALUES 
-(1, 'UCU Deportes', 'Av. 8 de Octubre', 'Montevideo');
+INSERT INTO complejo VALUES
+    (1, 'UCU Deportes', 'Av. 8 de Octubre 2738', 'Montevideo'),
+    (2, 'Complejo Malvín', 'Av. Rivera 4000', 'Montevideo');
 
-INSERT INTO cancha VALUES 
-('Cancha 1', 1, 'sintético', TRUE), ('Cancha 2', 1, 'parquet', FALSE);
+INSERT INTO cancha VALUES
+    ('Cancha 1', 1, 'sintético', TRUE), ('Cancha 2', 1, 'parquet', FALSE),
+    ('Cancha A', 2, 'sintético', FALSE);
 
-INSERT INTO turno VALUES 
-(1, '18:00', '19:00'), (2, '19:00', '20:00'),
-(3, '20:00', '21:00'), (4, '21:00', '22:00'),
-(5, '22:00', '23:00');
+INSERT INTO turno VALUES
+    (1, '18:00', '19:00'), (2, '19:00', '20:00'),
+    (3, '20:00', '21:00'), (4, '21:00', '22:00'),
+    (5, '22:00', '23:00');
 
-INSERT INTO partido VALUES 
-(1, 1, 1, 1, 2, '2026-09-01', 1, 'Cancha 1', 1, 'jugado'),
-(2, 1, 1, 3, 4, '2026-09-01', 2, 'Cancha 1', 1, 'jugado'),
-(3, 1, 1, 5, 6, '2026-09-01', 3, 'Cancha 1', 1, 'jugado'),
-(4, 1, 2, 1, 3, '2026-09-08', 1, 'Cancha 2', 1, 'jugado'),
-(5, 1, 2, 2, 5, '2026-09-08', 2, 'Cancha 2', 1, 'jugado'),
-(6, 1, 2, 4, 6, '2026-09-08', 3, 'Cancha 2', 1, 'jugado'),
-(7, 1, 3, 1, 4, '2026-09-15', 1, 'Cancha 1', 1, 'jugado'),
-(8, 1, 3, 2, 6, '2026-09-15', 2, 'Cancha 1', 1, 'jugado'),
-(9, 1, 3, 3, 5, '2026-09-15', 3, 'Cancha 1', 1, 'jugado'),
-(10, 1, 4, 1, 5, '2026-09-22', 1, 'Cancha 1', 1, 'postergado'),
-(11, 1, 4, 2, 4, '2026-09-22', 2, 'Cancha 1', 1, 'cancelado');
+-- Liga a una rueda: 6 equipos, 15 partidos en 5 fechas.
+-- Fechas 1 a 3 jugadas, fecha 4 con un postergado, un cancelado y un jugado,
+-- fecha 5 todavía programada.
+INSERT INTO partido VALUES
+    (1, 1, 1, 1, 2, '2026-09-01', 1, 'Cancha 1', 1, 'jugado'),
+    (2, 1, 1, 3, 6, '2026-09-01', 1, 'Cancha 2', 1, 'jugado'),
+    (3, 1, 1, 4, 5, '2026-09-01', 2, 'Cancha 1', 1, 'jugado'),
+    (4, 1, 2, 1, 3, '2026-09-08', 1, 'Cancha 1', 1, 'jugado'),
+    (5, 1, 2, 2, 4, '2026-09-08', 2, 'Cancha 1', 1, 'jugado'),
+    (6, 1, 2, 5, 6, '2026-09-08', 3, 'Cancha A', 2, 'jugado'),
+    (7, 1, 3, 1, 4, '2026-09-15', 1, 'Cancha 1', 1, 'jugado'),
+    (8, 1, 3, 3, 5, '2026-09-15', 2, 'Cancha 2', 1, 'jugado'),
+    (9, 1, 3, 2, 6, '2026-09-15', 3, 'Cancha 1', 1, 'jugado'),
+    (10, 1, 4, 1, 5, '2026-09-22', 1, 'Cancha 1', 1, 'postergado'),
+    (11, 1, 4, 4, 6, '2026-09-22', 1, 'Cancha 2', 1, 'cancelado'),
+    (12, 1, 4, 2, 3, '2026-09-22', 2, 'Cancha 1', 1, 'jugado'),
+    (13, 1, 5, 1, 6, '2026-11-10', 1, 'Cancha 1', 1, 'programado'),
+    (14, 1, 5, 2, 5, '2026-11-10', 1, 'Cancha 2', 1, 'programado'),
+    (15, 1, 5, 3, 4, CURDATE() - INTERVAL 1 DAY, 1, 'Cancha A', 2, 'programado');
 
-INSERT INTO planilla_partido VALUES 
-(1, '111', 1), (1, '222', 2), (1, '888', 1);
+-- Planillas: 5 jugadores por equipo en cada partido jugado.
+-- Los suspendidos no figuran y entra el suplente.
+INSERT INTO planilla_partido VALUES
+    (1, '401001', 1), (1, '401002', 1), (1, '401003', 1), (1, '401004', 1), (1, '401005', 1),
+    (1, '402001', 2), (1, '402002', 2), (1, '402003', 2), (1, '402004', 2), (1, '402005', 2),
+    (2, '403001', 3), (2, '403002', 3), (2, '403003', 3), (2, '403004', 3), (2, '403005', 3),
+    (2, '406001', 6), (2, '406002', 6), (2, '406003', 6), (2, '406004', 6), (2, '406005', 6),
+    (3, '404001', 4), (3, '404002', 4), (3, '404003', 4), (3, '404004', 4), (3, '404005', 4),
+    (3, '405001', 5), (3, '405002', 5), (3, '405003', 5), (3, '405004', 5), (3, '405005', 5),
+    (4, '401001', 1), (4, '401003', 1), (4, '401004', 1), (4, '401005', 1), (4, '401006', 1),
+    (4, '403001', 3), (4, '403002', 3), (4, '403003', 3), (4, '403004', 3), (4, '403005', 3),
+    (5, '402001', 2), (5, '402002', 2), (5, '402003', 2), (5, '402004', 2), (5, '402005', 2),
+    (5, '404001', 4), (5, '404002', 4), (5, '404003', 4), (5, '404004', 4), (5, '404005', 4),
+    (6, '405001', 5), (6, '405002', 5), (6, '405003', 5), (6, '405004', 5), (6, '405005', 5),
+    (6, '406001', 6), (6, '406002', 6), (6, '406003', 6), (6, '406004', 6), (6, '406005', 6),
+    (7, '401001', 1), (7, '401002', 1), (7, '401004', 1), (7, '401005', 1), (7, '401006', 1),
+    (7, '404001', 4), (7, '404002', 4), (7, '404003', 4), (7, '404004', 4), (7, '404005', 4),
+    (8, '403001', 3), (8, '403002', 3), (8, '403003', 3), (8, '403004', 3), (8, '403005', 3),
+    (8, '405001', 5), (8, '405002', 5), (8, '405003', 5), (8, '405004', 5), (8, '405005', 5),
+    (9, '402001', 2), (9, '402002', 2), (9, '402003', 2), (9, '402004', 2), (9, '402005', 2),
+    (9, '406001', 6), (9, '406002', 6), (9, '406003', 6), (9, '406004', 6), (9, '406005', 6),
+    (12, '402001', 2), (12, '402002', 2), (12, '402003', 2), (12, '402004', 2), (12, '402005', 2),
+    (12, '403001', 3), (12, '403002', 3), (12, '403003', 3), (12, '403004', 3), (12, '403005', 3);
 
-INSERT INTO gol VALUES 
-(1, 1, '111', 15, FALSE);
+INSERT INTO gol VALUES
+    (1, 1, '401005', 29, 0), (2, 1, '401005', 39, 0), (3, 1, '401004', 43, 0),
+    (4, 1, '402002', 53, 0), (5, 2, '403002', 17, 0), (6, 2, '403004', 19, 0),
+    (7, 2, '406005', 31, 0), (8, 2, '406002', 49, 0), (9, 3, '404004', 27, 1),
+    (10, 4, '401004', 28, 0), (11, 4, '401005', 51, 0), (12, 5, '402003', 10, 0),
+    (13, 5, '404001', 20, 0), (14, 6, '405002', 1, 0), (15, 6, '405003', 3, 0),
+    (16, 6, '405005', 6, 0), (17, 6, '405003', 13, 0), (18, 6, '406005', 15, 0),
+    (19, 6, '406005', 17, 0), (20, 7, '401004', 27, 0), (21, 8, '403002', 11, 0),
+    (22, 8, '403003', 18, 0), (23, 8, '405003', 52, 0), (24, 8, '405001', 53, 0),
+    (25, 8, '405005', 59, 0), (26, 12, '402001', 14, 0), (27, 12, '403001', 39, 0),
+    (28, 12, '403001', 49, 0);
 
-INSERT INTO tarjeta VALUES 
-(1, 1, '888', 40, 'roja'), (2, 1, '222', 20, 'amarilla');
+INSERT INTO tarjeta VALUES
+    (1, 1, '401002', 27, 'roja'), (2, 2, '406005', 41, 'amarilla'), (3, 3, '404003', 35, 'amarilla'),
+    (4, 3, '405004', 8, 'amarilla'), (5, 3, '404002', 31, 'amarilla'), (6, 4, '403002', 45, 'amarilla'),
+    (7, 4, '401001', 17, 'amarilla'), (8, 4, '401003', 25, 'roja'), (9, 5, '402001', 44, 'amarilla'),
+    (10, 5, '404001', 29, 'amarilla'), (11, 6, '406005', 8, 'amarilla'), (12, 7, '404003', 58, 'amarilla'),
+    (13, 8, '403001', 52, 'amarilla'), (14, 9, '406003', 9, 'amarilla'), (15, 9, '406005', 27, 'amarilla'),
+    (16, 12, '402004', 12, 'amarilla'), (17, 12, '402005', 38, 'amarilla');
 
-INSERT INTO sancion_jugador VALUES 
-(1, '888', 1, 'roja', 2, 1, 1);
+-- Las sanciones se cargan a mano porque los triggers que las generan se crean
+-- más abajo, después de estos datos. Cada roja y cada 3era amarilla suspende la fecha siguiente.
+INSERT INTO sancion_jugador VALUES
+    (1, '406003', 1, 'disciplinaria', 4, 2, NULL),
+    (2, '404002', 1, 'disciplinaria', 5, 1, NULL),
+    (3, '401002', 1, 'roja', 2, 1, 1),
+    (4, '401003', 1, 'roja', 3, 1, 8),
+    (5, '406005', 1, 'acumulación de amarillas', 4, 1, 15);
 
 
 -- Reglas de planteles, partidos, planillas y sanciones.
@@ -612,4 +706,3 @@ GRANT INSERT, UPDATE, DELETE ON torneo_ucu.planilla_partido TO 'app_planillero'@
 GRANT INSERT, UPDATE, DELETE ON torneo_ucu.gol TO 'app_planillero'@'%';
 GRANT INSERT, UPDATE, DELETE ON torneo_ucu.tarjeta TO 'app_planillero'@'%';
 GRANT UPDATE ON torneo_ucu.partido TO 'app_planillero'@'%';
-
